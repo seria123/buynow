@@ -3,6 +3,7 @@ import '../css/app.css';
 
 import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
+import { route } from '../../vendor/tightenco/ziggy';
 
 createInertiaApp({
     resolve: name => {
@@ -12,6 +13,7 @@ createInertiaApp({
 
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })
+            .mixin({ methods: { route } })
             .use(plugin)
             .mount(el);
     }

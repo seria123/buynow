@@ -10,12 +10,14 @@
 /.nova
 /.phpunit.cache
 /.vscode
+/.qodo
 /.zed
 /auth.json
 /node_modules
 /public/build
 /public/hot
 /public/storage
+/public/media
 /storage/*.key
 /storage/pail
 /vendor
