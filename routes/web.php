@@ -1,10 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthenticateSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return inertia('Index');
@@ -30,4 +30,17 @@ Route::controller(RegisteredUserController::class)->group(function () {
 
 Route::controller(AuthenticateSessionController::class)->group(function() {
     Route::get('/login', 'index')->name('login');
+});
+
+Route::middleware('guest')->group(function () {
+    Route::get('/forgot-password', function () {
+        return inertia('Auth/ForgotPassword');
+    })->name('password.request');
+
+    Route::get('/reset-password/{token}', function (Request $request, string $token) {
+        return inertia('Auth/ResetPassword', [
+            'token' => $token,
+            'email' => $request->email,
+        ]);
+    })->name('password.reset');
 });

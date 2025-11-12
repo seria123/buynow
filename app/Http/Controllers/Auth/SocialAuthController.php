@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
 class SocialAuthController extends Controller
@@ -76,20 +77,17 @@ class SocialAuthController extends Controller
         // Check if user exists by provider ID first
         $user = User::where("{$provider}_id", $socialId)->first();
 
-        // If not found by provider ID, check by email
+        // If not found by provider ID, check by email (for account linking)
         if (!$user) {
             $user = User::where('email', $socialEmail)->first();
         }
 
+        $needsVerification = false;
+
         if ($user) {
-            // Update provider ID if not set
+            // Existing user (login) - link the provider ID if not already linked
             if (!$user->{"{$provider}_id"}) {
                 $user->{"{$provider}_id"} = $socialId;
-            }
-
-            // Update avatar if available and not set
-            if ($socialUser->getAvatar() && !$user->avatar) {
-                $user->avatar = $socialUser->getAvatar();
             }
 
             // Update name if changed
@@ -97,28 +95,48 @@ class SocialAuthController extends Controller
                 $user->name = $socialUser->getName();
             }
 
-            // Mark email as verified if from social provider
+            // If email is not verified, send verification email
             if (!$user->hasVerifiedEmail()) {
-                $user->markEmailAsVerified();
+                $needsVerification = true;
+                $user->sendEmailVerificationNotification();
             }
 
             $user->save();
         } else {
-            // Create new user
+            // Create new user (registration) - set avatar from social provider if available
+            $needsVerification = true;
             $user = User::create([
                 'name' => $socialUser->getName() ?? $socialEmail,
                 'email' => $socialEmail,
                 "{$provider}_id" => $socialId,
-                'avatar' => $socialUser->getAvatar(),
                 'password' => Hash::make(Str::random(32)), // Random password for social users
-                'email_verified_at' => now(), // Social providers verify emails
+                // Don't set email_verified_at - user must verify manually
             ]);
+
+            // Add avatar from social provider URL using Spatie Media Library
+            if ($socialUser->getAvatar()) {
+                try {
+                    $user->addMediaFromUrl($socialUser->getAvatar())
+                        ->toMediaCollection('avatar');
+                } catch (\Exception $e) {
+                    Log::error('Failed to add avatar: ' . $e->getMessage());
+                }
+            }
+
+            // Send verification email for new social users
+            $user->sendEmailVerificationNotification();
         }
 
         // Log the user in
         Auth::login($user, true);
 
-        // Redirect to home (or intended page)
+        // If email is not verified, redirect to verification screen
+        if ($needsVerification) {
+            return redirect()->route('verification.notice')
+                ->with('status', 'verification-link-sent');
+        }
+
+        // Redirect to home (or intended page) if already verified
         return redirect()->intended('/');
     }
 }

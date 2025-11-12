@@ -2,10 +2,26 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use App\Models\Permissions\Permission;
+use App\Models\Permissions\Role;
+use App\Models\User;
+use App\Policies\PermissionPolicy;
+use App\Policies\RolePolicy;
+use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\Gate;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * The policy mappings for the application.
+     *
+     * @var array<class-string, class-string>
+     */
+    protected $policies = [
+        Permission::class => PermissionPolicy::class,
+        Role::class => RolePolicy::class,
+    ];
+
     /**
      * Register any application services.
      */
@@ -19,6 +35,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Give Super Admin and Developer full access to everything
+        Gate::before(function (User $user, string $ability) {
+            if ($user->hasAnyRole(['Super Admin', 'Developer'])) {
+                return true;
+            }
+        });
     }
 }

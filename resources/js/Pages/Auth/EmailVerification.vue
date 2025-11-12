@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import AuthLayout from '../Layouts/AuthLayout.vue';
 
 const page = usePage();
@@ -9,14 +9,45 @@ const status = computed(() => page.props.flash?.status);
 const form = useForm({});
 
 const resending = ref(false);
-const resent = ref(computed(() => status.value === 'verification-link-sent'));
+const resent = ref(false);
+
+// Countdown timer (2 minutes = 120 seconds)
+const countdown = ref(0);
+const countdownInterval = ref(null);
+
+const isButtonDisabled = computed(() => {
+    return form.processing || resending || resent.value || countdown.value > 0;
+});
+
+const startCountdown = () => {
+    countdown.value = 120; // 2 minutes
+
+    countdownInterval.value = setInterval(() => {
+        if (countdown.value > 0) {
+            countdown.value--;
+        }
+        if (countdown.value <= 0) {
+            clearInterval(countdownInterval.value);
+            countdownInterval.value = null;
+        }
+    }, 1000);
+};
+
+const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 const resendEmail = () => {
+    if (isButtonDisabled.value) return;
+
     resending.value = true;
     form.post('/email/verification-notification', {
         onFinish: () => {
             resending.value = false;
             resent.value = true;
+            startCountdown();
             setTimeout(() => resent.value = false, 5000);
         },
         onError: () => {
@@ -24,6 +55,22 @@ const resendEmail = () => {
         },
     });
 };
+
+// Start countdown if verification link was just sent
+onMounted(() => {
+    if (status.value === 'verification-link-sent') {
+        resent.value = true;
+        startCountdown();
+        setTimeout(() => resent.value = false, 5000);
+    }
+});
+
+// Cleanup interval on unmount
+onUnmounted(() => {
+    if (countdownInterval.value) {
+        clearInterval(countdownInterval.value);
+    }
+});
 </script>
 
 <template>
@@ -97,17 +144,20 @@ const resendEmail = () => {
                 </div>
 
                 <!-- Resend button -->
-                <button type="button" @click="resendEmail" :disabled="form.processing || resending || resent"
+                <button type="button" @click="resendEmail" :disabled="isButtonDisabled"
                     class="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-black font-semibold py-3 px-6 rounded-xl shadow-lg shadow-yellow-400/30 hover:shadow-yellow-400/50 disabled:shadow-none transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none flex items-center justify-center space-x-2">
-                    <svg v-if="form.processing || resending" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none"
-                        viewBox="0 0 24 24">
+                    <svg v-if="form.processing || resending" class="animate-spin h-5 w-5"
+                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
                         </circle>
                         <path class="opacity-75" fill="currentColor"
                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
                         </path>
                     </svg>
-                    <span>{{ (form.processing || resending) ? 'Sending...' : resent ? 'Email Sent!' : 'Resend Verification Email' }}</span>
+                    <span v-if="form.processing || resending">Sending...</span>
+                    <span v-else-if="resent">Email Sent!</span>
+                    <span v-else-if="countdown > 0">Resend in {{ formatTime(countdown) }}</span>
+                    <span v-else>Resend Verification Email</span>
                 </button>
 
                 <!-- Help text -->

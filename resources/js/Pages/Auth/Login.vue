@@ -132,6 +132,13 @@ const submit = () => {
                     <p v-if="form.errors.password" class="mt-1 text-sm text-red-500">{{ form.errors.password }}</p>
                 </div>
 
+                <div class="flex justify-end">
+                    <Link :href="route('password.request')"
+                        class="text-sm font-medium text-yellow-500 hover:text-yellow-400 transition-colors">
+                    Forgot your password?
+                    </Link>
+                </div>
+
                 <!-- Remember Me -->
                 <div class="flex items-center">
                     <input id="remember" v-model="form.remember" type="checkbox"

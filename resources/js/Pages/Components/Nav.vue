@@ -50,17 +50,6 @@ onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);
 });
 
-// Get user initials for avatar fallback
-const userInitials = computed(() => {
-    if (!user.value?.name) return 'U';
-    return user.value.name
-        .split(' ')
-        .map(n => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2);
-});
-
 // Handle logout
 const handleLogout = () => {
     router.post('/logout');
@@ -72,7 +61,7 @@ const handleLogout = () => {
         <!-- Top Bar -->
         <div
             class="bg-linear-to-r from-gray-900 via-black to-gray-900 text-gray-300 py-2.5 px-4 text-xs hidden md:block border-b border-yellow-400/20">
-            <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="container mx-auto flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <svg class="w-3.5 h-3.5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd"
@@ -114,14 +103,9 @@ const handleLogout = () => {
                                 class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-800/50 transition-all duration-300 group">
                                 <!-- User Avatar -->
                                 <div class="relative">
-                                    <div v-if="user.avatar"
-                                        class="w-7 h-7 rounded-full bg-yellow-400 border-2 border-yellow-400/50 overflow-hidden ring-2 ring-yellow-400/30">
-                                        <img :src="user.avatar" :alt="user.name" class="w-full h-full object-cover" />
-                                    </div>
-                                    <div v-else
+                                    <div
                                         class="w-7 h-7 rounded-full border-2 border-yellow-400/50 overflow-hidden ring-2 ring-yellow-400/30 shadow-md shadow-yellow-400/20">
-                                        <img :src="`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=FFEB3B&color=222&size=64&rounded=true`"
-                                            :alt="user.name" class="w-full h-full object-cover" />
+                                        <img :src="user.avatar" :alt="user.name" class="w-full h-full object-cover" />
                                     </div>
                                     <!-- Online indicator -->
                                     <span
@@ -157,15 +141,10 @@ const handleLogout = () => {
                                     <div
                                         class="px-4 py-3 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-gray-800 dark:to-gray-800/80 border-b border-yellow-200 dark:border-gray-700 rounded-t-xl">
                                         <div class="flex items-center gap-3">
-                                            <div v-if="user.avatar"
-                                                class="w-10 h-10 rounded-full bg-yellow-400 border-2 border-yellow-400/50 overflow-hidden ring-2 ring-yellow-400/30">
+                                            <div
+                                                class="w-10 h-10 rounded-full border-2 border-yellow-400/50 overflow-hidden ring-2 ring-yellow-400/30 shadow-md shadow-yellow-400/20">
                                                 <img :src="user.avatar" :alt="user.name"
                                                     class="w-full h-full object-cover" />
-                                            </div>
-                                            <div v-else
-                                                class="w-10 h-10 rounded-full border-2 border-yellow-400/50 overflow-hidden ring-2 ring-yellow-400/30 shadow-md shadow-yellow-400/20">
-                                                <img :src="`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=FFEB3B&color=222&size=64&rounded=true`"
-                                                    :alt="user.name" class="w-full h-full object-cover" />
                                             </div>
                                             <div class="flex-1 min-w-0">
                                                 <div
@@ -252,7 +231,7 @@ const handleLogout = () => {
         <!-- Main Header -->
         <div
             class="bg-linear-to-br from-yellow-400 via-yellow-300 to-yellow-400 backdrop-blur-lg py-3 md:py-4 px-4 border-b border-yellow-500/30">
-            <div class="max-w-7xl mx-auto flex items-center gap-3 md:gap-6">
+            <div class="container mx-auto flex items-center gap-3 md:gap-6 relative">
                 <!-- Mobile Menu Button -->
                 <button @click="showMobileMenu = !showMobileMenu"
                     class="p-2 hover:bg-black/10 rounded-xl transition-all duration-300 lg:hidden hover:scale-105 active:scale-95">
@@ -263,17 +242,18 @@ const handleLogout = () => {
                 </button>
 
                 <!-- Logo -->
-                <a href="/"
-                    class="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-gray-900 via-gray-800 to-gray-900 tracking-tight hover:scale-105 transition-transform">
-                    Buynow
-                </a>
+                <Link href="/"
+                    class="text-4xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-gray-900 via-gray-800 to-gray-900 tracking-tight hover:scale-105 transition-transform flex-shrink-0">
+                Buynow
+                </Link>
 
                 <!-- Desktop Search Bar -->
-                <div class="hidden lg:flex flex-1 max-w-3xl">
+                <div
+                    class="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[600px] xl:max-w-[700px] 2xl:max-w-[800px] px-2">
                     <div
                         class="flex w-full bg-white/95 backdrop-blur-xl rounded-full shadow-xl shadow-black/10 overflow-hidden border border-gray-200/50 hover:shadow-2xl hover:shadow-black/20 transition-all duration-300">
                         <input v-model="searchQuery" type="text" placeholder="Search for Products"
-                            class="flex-1 px-6 py-3.5 focus:outline-none text-gray-800 placeholder-gray-400 bg-transparent" />
+                            class="flex-1 px-6 py-3.5 focus:outline-none text-gray-800 placeholder-gray-400 bg-transparent min-w-0" />
                         <div class="relative">
                             <button @click="showCategoryDropdown = !showCategoryDropdown"
                                 class="px-4 py-3.5 text-gray-700 flex items-center gap-2 hover:bg-gray-50/80 transition-all duration-300 whitespace-nowrap border-l border-gray-200/50 group">
@@ -383,7 +363,7 @@ const handleLogout = () => {
 
         <!-- Desktop Navigation Menu -->
         <div class="bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm hidden lg:block">
-            <div class="max-w-7xl mx-auto">
+            <div class="container mx-auto">
                 <nav class="flex items-center justify-center">
                     <a v-for="item in navigation" :key="item.name" :href="item.href"
                         class="px-5 py-4 text-gray-700 hover:text-gray-900 hover:bg-yellow-50 transition-all duration-300 flex items-center gap-2 font-medium text-sm relative group">
@@ -435,15 +415,10 @@ const handleLogout = () => {
                                     <div
                                         class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-4 mb-4 border border-yellow-200 shadow-sm">
                                         <div class="flex items-center gap-3">
-                                            <div v-if="user.avatar"
-                                                class="w-12 h-12 rounded-full bg-yellow-400 border-2 border-yellow-400/50 overflow-hidden ring-2 ring-yellow-400/30 shrink-0">
+                                            <div
+                                                class="w-12 h-12 rounded-full border-2 border-yellow-400/50 overflow-hidden ring-2 ring-yellow-400/30 shadow-md shadow-yellow-400/20 shrink-0">
                                                 <img :src="user.avatar" :alt="user.name"
                                                     class="w-full h-full object-cover" />
-                                            </div>
-                                            <div v-else
-                                                class="w-12 h-12 rounded-full border-2 border-yellow-400/50 overflow-hidden ring-2 ring-yellow-400/30 shadow-md shadow-yellow-400/20">
-                                                <img :src="`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=FFEB3B&color=222&size=64&rounded=true`"
-                                                    :alt="user.name" class="w-full h-full object-cover" />
                                             </div>
                                             <div class="flex-1 min-w-0">
                                                 <div class="text-sm font-bold text-gray-900 truncate">{{ user.name }}

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, useForm, Link } from '@inertiajs/vue3';
+import { Head, useForm, Link, router } from '@inertiajs/vue3';
 import AuthLayout from '../Layouts/AuthLayout.vue';
 
 const form = useForm({
@@ -18,7 +18,15 @@ const showConfirmPasswordField = ref(false);
 
 const submit = () => {
     form.post('/register', {
-        onFinish: () => form.reset('password', 'password_confirmation'),
+        onFinish: () => {
+            form.reset('password', 'password_confirmation');
+            // Redirect to email verification page after successful registration
+            router.visit('/email/verify', {
+                method: 'get',
+                preserveState: false,
+                preserveScroll: false,
+            });
+        },
     });
 };
 </script>
