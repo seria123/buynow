@@ -19,7 +19,14 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             \Database\Seeders\Permissions\PermissionSeeder::class,
             \Database\Seeders\Permissions\RolePermissionSeeder::class,
-            UserSeeder::class
+            UserSeeder::class,
+            \Database\Seeders\Catalogue\CategorySeeder::class,
+            \Database\Seeders\Catalogue\BrandSeeder::class,
+            \Database\Seeders\Catalogue\AttributeFamilySeeder::class,
+            \Database\Seeders\Catalogue\AttributeSeeder::class,
+            \Database\Seeders\Catalogue\AttributeValueSeeder::class,
+            \Database\Seeders\Catalogue\ProductSeeder::class,
+            \Database\Seeders\Catalogue\ProductAttributeValueSeeder::class,
         ]);
     }
 }

@@ -114,7 +114,7 @@ onUnmounted(() => {
             <div
                 class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 mb-6">
                 <div class="flex items-start space-x-3">
-                    <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" fill="currentColor"
+                    <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0" fill="currentColor"
                         viewBox="0 0 20 20">
                         <path fill-rule="evenodd"
                             d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
@@ -145,7 +145,7 @@ onUnmounted(() => {
 
                 <!-- Resend button -->
                 <button type="button" @click="resendEmail" :disabled="isButtonDisabled"
-                    class="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-black font-semibold py-3 px-6 rounded-xl shadow-lg shadow-yellow-400/30 hover:shadow-yellow-400/50 disabled:shadow-none transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none flex items-center justify-center space-x-2">
+                    class="w-full bg-linear-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-black font-semibold py-3 px-6 rounded-xl shadow-lg shadow-yellow-400/30 hover:shadow-yellow-400/50 disabled:shadow-none transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none flex items-center justify-center space-x-2">
                     <svg v-if="form.processing || resending" class="animate-spin h-5 w-5"
                         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">

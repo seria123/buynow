@@ -2,10 +2,12 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Settings;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\MenuItem;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -31,6 +33,7 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
+            ->maxContentWidth('full')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
@@ -40,6 +43,17 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
+            ])
+            ->databaseNotifications()
+            ->userMenuItems([
+                'profile' => MenuItem::make()
+                    ->label('Profile')
+                    ->url('#')
+                    ->icon('heroicon-o-user-circle'),
+                'settings' => MenuItem::make()
+                    ->label('Settings')
+                    ->url(fn (): string => Settings::getUrl())
+                    ->icon('heroicon-o-cog-6-tooth'),
             ])
             ->middleware([
                 EncryptCookies::class,
