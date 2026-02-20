@@ -2,6 +2,12 @@
 import { ref, computed } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import AuthLayout from '../Layouts/AuthLayout.vue';
+import { useCart } from '../../cart.js';
+
+
+
+
+const { mergeGuestCart } = useCart();
 
 const page = usePage();
 const status = computed(() => page.props.flash?.status);
@@ -16,10 +22,13 @@ const showPassword = ref(false);
 
 const submit = () => {
     form.post('/login', {
+       
         onFinish: () => form.reset('password'),
     });
 };
 </script>
+
+
 
 <template>
 

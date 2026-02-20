@@ -5,8 +5,11 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Pages\PagesController;
 use App\Http\Controllers\Pages\ProductsController;
+use App\Http\Controllers\Pages\ProfileController;
+use App\Http\Controllers\Pages\CartController;
 use App\Models\Catalogue\Category;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PagesController::class, 'index']);
@@ -41,6 +44,8 @@ Route::controller(RegisteredUserController::class)->group(function () {
 
 Route::controller(AuthenticateSessionController::class)->group(function () {
     Route::get('/login', 'index')->name('login');
+    Route::post('/login', 'store');
+   
 });
 
 Route::middleware('guest')->group(function () {
@@ -55,3 +60,34 @@ Route::middleware('guest')->group(function () {
         ]);
     })->name('password.reset');
 });
+
+
+ Route::middleware(['auth'])->group(function () {
+    Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
+     Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
+     Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
+});
+Route::post('/profile/password', [ProfileController::class, 'updatePassword'])
+    ->middleware('auth')
+    ->name('profile.password.update');
+    Route::get('/profile/security', [ProfileController::class, 'security'])
+    ->name('profile.security');
+    Route::get('/product/{slug}', [ProductsController::class, 'show'])->name('products.show');
+
+ // User cart page (Inertia)
+Route::middleware('auth')->get('/profile/cart', [CartController::class, 'page'])->name('cart.page');
+
+// Cart routes (public for guests, includes session + CSRF)
+Route::middleware('web')->group(function () {
+    Route::get('/cart', [CartController::class, 'index']);
+    Route::post('/cart/add', [CartController::class, 'add']);
+    Route::post('/cart/remove/{id}', [CartController::class, 'remove']);
+    Route::post('/cart/clear', [CartController::class, 'clear']);
+    Route::get('/cart/page', [CartController::class, 'page']);
+
+    Route::middleware('auth')->group(function () {
+        Route::post('/cart/checkout', [CartController::class, 'checkout']);
+        Route::post('/cart/merge', [CartController::class, 'merge']);
+    });
+});
+

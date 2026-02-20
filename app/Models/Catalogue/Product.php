@@ -18,6 +18,8 @@ class Product extends Model implements AuditableContract, HasMedia
 {
     use Auditable, HasFactory, HasUuids, InteractsWithMedia;
 
+    
+
     protected $table = 'products';
 
     protected $fillable = [

@@ -35,6 +35,13 @@ class UserSeeder extends Seeder
                 'password' => bcrypt('password'),
                 'role' => 'Operator',
             ],
+            [
+                'name' => 'Stephen Thuku',
+                'username' => 'stephen',
+                'email' => 'stephen@gmail.com',
+                'password' => bcrypt('password'),
+                'role' => 'Developer',
+            ],
         ];
 
         foreach ($users as $userData) {

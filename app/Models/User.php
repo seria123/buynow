@@ -31,6 +31,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia, Filamen
         'username',
         'google_id',
         'facebook_id',
+        'phone_number',
         'avatar',
     ];
 
@@ -106,4 +107,6 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia, Filamen
     {
         return $this->hasAnyRole(['Admin', 'Super Admin', 'Developer']);
     }
+
+    
 }

@@ -1,6 +1,15 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
+import { useCart } from '../../cart.js';
+
+
+
+
+const {cart, cartCount, cartTotal, loadCart } = useCart();
+const isCartDropdownOpen = ref(false);
+
+
 
 const props = defineProps({
     isDark: {
@@ -8,7 +17,28 @@ const props = defineProps({
         default: false,
     },
 });
+let cartDropdownTimeout = null;
 
+
+const openDropdown = () => {
+    cancelDropdownCloseCart();
+    isCartDropdownOpen.value = true;
+    loadCart(); // refresh cart dynamically
+};
+
+const scheduleDropdownCloseCart = () => {
+    cancelDropdownCloseCart();
+    cartDropdownTimeout = setTimeout(() => {
+        isCartDropdownOpen.value = false;
+    }, 200);
+};
+
+const cancelDropdownCloseCart = () => {
+    if (cartDropdownTimeout) {
+        clearTimeout(cartDropdownTimeout);
+        cartDropdownTimeout = null;
+    }
+};
 const emit = defineEmits(['toggle-dark-mode']);
 
 const searchQuery = ref('');
@@ -113,7 +143,14 @@ const isNavItemActive = (item) => {
 const currencyFormatter = new Intl.NumberFormat('en-KE', {
     style: 'currency',
     currency: 'KES',
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
+});
+const displayCount = computed(() => {
+    return cartCount.value > 0 ? cartCount.value : '';
+});
+
+const displayTotal = computed(() => {
+    return currencyFormatter.format(cartTotal.value || 0);
 });
 
 const formatCurrency = (value) => {
@@ -199,11 +236,14 @@ onUnmounted(() => {
 const handleLogout = () => {
     router.post('/logout');
 };
+
 </script>
 
 <template>
-    <div class="sticky top-0 z-40 shadow-lg">
-        <!-- Top Bar -->
+ 
+   
+    <div class="sticky top-0 z-40 shadow-lg"></div>
+        <!-- Top Bar --><div class="bg-linear-to-br from-yellow-400 via-yellow-300 to-yellow-400 dark:bg-zinc-900 border-b border-black-500/30 dark:border-zinc-800 transition-colors duration-300 relative">
         <div
             class="bg-gray-900 dark:bg-zinc-950 text-gray-300 dark:text-gray-400 py-2.5 px-4 text-xs hidden md:block border-b border-yellow-400/20 dark:border-zinc-900">
             <div class="container mx-auto flex items-center justify-between">
@@ -389,8 +429,6 @@ const handleLogout = () => {
         </div>
 
         <!-- Main Header -->
-        <div
-            class="bg-linear-to-br from-yellow-400 via-yellow-300 to-yellow-400 dark:bg-zinc-900 backdrop-blur-lg py-3 md:py-4 px-4 border-b border-yellow-500/30 dark:border-zinc-800 transition-colors duration-300 relative overflow-hidden">
             <!-- Subtle Tech Pattern Overlay -->
             <div class="absolute inset-0 opacity-[0.15] dark:opacity-[0.08] pointer-events-none">
                 <svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
@@ -445,6 +483,7 @@ const handleLogout = () => {
                         class="text-gray-900 dark:text-yellow-500" />
                 </svg>
             </div>
+      
 
             <div class="container mx-auto flex items-center gap-3 md:gap-6 relative z-10">
                 <!-- Mobile Menu Button -->
@@ -509,6 +548,7 @@ const handleLogout = () => {
                         </button>
                     </div>
                 </div>
+            
 
                 <!-- Right Actions -->
                 <div class="flex items-center gap-1.5 md:gap-3 ml-auto">
@@ -537,21 +577,93 @@ const handleLogout = () => {
                                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                         </svg>
                     </button>
-                    <button
-                        class="relative p-2.5 hover:bg-black/10 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 group">
-                        <svg class="w-5 h-5 text-gray-900 group-hover:scale-110 transition-transform" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                        </svg>
-                        <span
-                            class="absolute -top-1 -right-1 bg-linear-to-br from-gray-900 to-black dark:from-yellow-500 dark:to-yellow-600 text-white dark:text-gray-900 text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold shadow-lg animate-pulse">
-                            2
-                        </span>
-                    </button>
+                    <div
+  class="relative"
+  @mouseenter="openDropdown"
+  @mouseleave="scheduleDropdownCloseCart"
+>
+  <!-- Cart Icon -->
+  <Link
+    href="/profile/cart"
+    class="relative p-1 hover:bg-black/10 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 group"
+  >
+    <svg
+      class="w-5 h-5 text-gray-900 group-hover:scale-110 transition-transform"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+      />
+    </svg>
+
+    <span
+      v-if="displayCount"
+      class="absolute top-1 left-1 bg-linear-to-br from-gray-900 to-black dark:from-yellow-500 dark:to-yellow-600 text-white dark:text-gray-900 text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold shadow-lg animate-pulse p-"
+    >
+      {{ displayCount }}
+    </span>
+  </Link>
+
+  <!-- CART DROPDOWN -->
+  <transition
+    enter-active-class="transition-all duration-200 ease-out"
+    enter-from-class="opacity-0 scale-95 -translate-y-2"
+    enter-to-class="opacity-100 scale-100 translate-y-0"
+    leave-active-class="transition-all duration-150 ease-in"
+    leave-from-class="opacity-100 scale-100 translate-y-0"
+    leave-to-class="opacity-0 scale-95 -translate-y-2"
+  >
+    <div
+      v-if="isCartDropdownOpen"
+      class="absolute right-0 mt-2 w-72 bg-linear-to-br from-yellow-400 via-yellow-300 to-yellow-400 border border-yellow-500/30 rounded-xl shadow-xl z-50 p-4 text-gray-900"
+      @mouseenter="cancelDropdownCloseCart"
+      @mouseleave="scheduleDropdownCloseCart"
+    >
+      <div class="text-sm font-semibold mb-2">Cart</div>
+
+      <div v-if="cart.length === 0" class="text-sm">
+        Your cart is empty
+      </div>
+    
+
+      <div v-else>
+        <div
+          v-for="item in cart"
+          :key="item.id"
+          class="flex justify-between text-sm py-1"
+        >
+          <span>{{ item.name }}</span>
+          <span>{{ formatCurrency(item.price) }}</span>
+        </div>
+    
+
+        <div class="border-t border-yellow-600/40 mt-2 pt-2 flex justify-between font-semibold">
+          <span>Total</span>
+          <span>{{ displayTotal }}</span>
+        </div>
+    
+        <Link
+          href="/profile/cart"
+          class="block mt-3 text-center bg-black text-white py-2 rounded-lg text-sm hover:bg-gray-800 font-semibold"
+        >
+          View Cart
+        </Link>
+      </div>
+    </div>
+    
+  </transition>
+</div>
+               
+
+                
                     <div class="text-right hidden md:block ml-2">
                         <div class="text-[10px] text-gray-700 font-medium">Your Cart</div>
-                        <div class="text-lg font-bold text-gray-900 tracking-tight">KES 1,785</div>
+                        <div class="text-lg font-bold text-gray-900 tracking-tight">  {{ displayTotal }}</div>
                     </div>
                 </div>
             </div>
@@ -576,7 +688,7 @@ const handleLogout = () => {
                     </div>
                 </div>
             </transition>
-        </div>
+           
 
         <!-- Desktop Navigation Menu -->
         <div
@@ -722,6 +834,7 @@ const handleLogout = () => {
 
                         <!-- Mobile Menu Items -->
                         <div class="p-4">
+                            
                             <!-- User Actions -->
                             <div class="mb-6 pb-6 border-b border-gray-100 dark:border-zinc-800">
                                 <template v-if="user">
@@ -852,10 +965,14 @@ const handleLogout = () => {
                             </div>
                         </div>
                     </div>
+                    
                 </transition>
             </div>
+
         </transition>
-    </div>
+        </div>
+       
+  
 </template>
 
 <style scoped>

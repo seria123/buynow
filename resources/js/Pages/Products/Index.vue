@@ -2,6 +2,9 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import MainLayout from '../Layouts/MainLayout.vue';
+import { useCart } from '../../cart.js';
+import { toast } from 'vue3-toastify';
+import 'vue3-toastify/dist/index.css';
 import ProductFilters from '../Components/ProductFilters.vue';
 
 const props = defineProps({
@@ -35,6 +38,17 @@ const props = defineProps({
     },
 });
 
+const { addToCart, loadCart } = useCart();
+
+
+const handleAddToCart = async (productId) => {
+    try {
+        await addToCart(productId, 1);
+        toast.success('Product added to cart!', { position: 'bottom-left', autoClose: 2000 });
+    } catch (err) {
+        toast.error('Failed to add product', { position: 'bottom-left', autoClose: 3000 });
+    }
+};
 const normalizedFilters = computed(() => props.filters ?? {});
 const page = usePage();
 const sharedCategories = computed(() => page.props.categories ?? []);
@@ -160,6 +174,7 @@ onMounted(() => {
 onUnmounted(() => {
     window.removeEventListener('scroll', handleScroll);
 });
+
 </script>
 
 <template>
@@ -279,7 +294,7 @@ onUnmounted(() => {
                                         </div>
 
                                         <!-- Add to Cart Button -->
-                                        <button type="button"
+                                       <button @click="handleAddToCart(product.id)"
                                             class="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold py-3 shadow-lg shadow-yellow-500/30 hover:shadow-yellow-600/40 transition-all hover:scale-[1.02] active:scale-[0.98]">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
