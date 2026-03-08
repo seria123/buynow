@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { usePage, useForm,Head } from '@inertiajs/vue3';
+import { usePage, useForm, Head, router } from '@inertiajs/vue3';
 import ProfileLayout from '../Layouts/ProfileLayout.vue';
 import MainLayout from '../Layouts/MainLayout.vue';
 
@@ -53,17 +53,23 @@ const handleFileUpload = (event) => {
 
 // Save changes
 // Update Save changes
-const saveProfile = () => { // Changed from saveChanges
+const saveProfile = () => {
   form.post('/profile/update', {
-    
-    onSuccess: () => triggerToast('Profile updated successfully!'),
-    onError: (errors) => {
-      console.log(errors);
-      triggerToast('Error updating profile.');
-    }
-  });
-};
+    forceFormData: true,
 
+    onSuccess: () => {
+      triggerToast('Profile updated successfully!')
+      
+      // Use direct page redirect with cache-busting to ensure fresh data is loaded
+      window.location.href = '/profile/edit?t=' + Date.now();
+    },
+
+    onError: (errors) => {
+      console.log(errors)
+      triggerToast('Error updating profile.')
+    }
+  })
+}
 
 // Cancel (reset form)
 const cancel = () => {
@@ -106,14 +112,16 @@ const cancel = () => {
             </div>
             <div class="lg:col-span-2 space-y-6">
                 <div class="flex items-center gap-6">
-                    <div class="relative group cursor-pointer" @click="$refs.fileInput.click()">
-                        <img :src="avatarPreview || `https://ui-avatars.com/api/?name=${user.name}`" 
-                             class="w-24 h-24 rounded-2xl object-cover border-2 border-yellow-400 shadow-xl shadow-yellow-400/10" />
-                        <div class="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                            <span class="text-white text-[10px] font-bold uppercase">Change</span>
-                        </div>
-                        <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden" />
-                    </div>
+                   <div class="relative group cursor-pointer" @click="$refs.fileInput.click()">
+  <img 
+    :src="avatarPreview || user?.avatar || `https://ui-avatars.com/api/?name=${user?.name || 'User'}`" 
+    class="w-24 h-24 rounded-2xl object-cover border-2 border-yellow-400 shadow-xl shadow-yellow-400/10"
+  />
+  <div class="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+      <span class="text-white text-[10px] font-bold uppercase">Change</span>
+  </div>
+  <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden" />
+</div>
                     <div>
                         <p class="text-sm font-bold dark:text-white">Profile Photo</p>
                         <p class="text-xs text-gray-500">JPG, PNG or GIF. Max 2MB.</p>
@@ -155,7 +163,7 @@ const cancel = () => {
                 </div>
                 <div>
                     <label :class="labelStyle">Phone Number</label>
-                    <input v-model="form.phone_number" type="tel" :class="inputStyle" 
+                    <input v-model="form.phone" type="tel" :class="inputStyle" 
                     class="w-full px-4 py-2 pr-10 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all duration-300"
                     placeholder="+1 (555) 000-0000" />
                 </div>

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Pages;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Cart;
+use App\Models\Sales\Cart;
 use App\Models\Catalogue\Product;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -142,48 +142,54 @@ class CartController extends Controller
     // Checkout
     // -----------------------------
     public function checkout(Request $request)
-    {
-        $user = auth()->user();
-        if (!$user) {
-            return response()->json(['error' => 'Login required'], 401);
-        }
+{
+    $userId = Auth::id();
+    $cartItems = Cart::where('user_id', $userId)->get();
 
-        $cart = Cart::where('user_id', $user->id)->get();
-        if ($cart->isEmpty()) {
-            return response()->json(['error' => 'Cart empty'], 400);
-        }
-
-        $total = $cart->sum(fn($item) => $item->price * $item->quantity);
-
-        try {
-            $order = Order::create([
-                'user_id' => $user->id,
-                'total_price' => $total,
-                'status' => 'pending',
-                'shipping_address' => $request->shipping_address ?? null,
-            ]);
-
-            foreach ($cart as $item) {
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $item->product_id,
-                    'product_name' => $item->product_name,
-                    'price' => $item->price,
-                    'quantity' => $item->quantity,
-                    'category_name' => $item->category_name,
-                ]);
-            }
-
-            Cart::where('user_id', $user->id)->delete();
-
-            return response()->json(['order_id' => $order->id]);
-
-        } catch (\Exception $e) {
-            \Log::error('Checkout failed', [
-                'error' => $e->getMessage(),
-                'stack' => $e->getTraceAsString()
-            ]);
-            return response()->json(['error' => 'Checkout failed'], 500);
-        }
+    if ($cartItems->isEmpty()) {
+        return response()->json(['message' => 'Cart is empty'], 400);
     }
+
+    DB::beginTransaction();
+    try {
+        // Create Order
+        $order = Order::create([
+            'id' => Str::uuid(),
+            'user_id' => $userId,
+            'total_amount' => 0,
+            'status' => 'pending',
+        ]);
+
+        $total = 0;
+        foreach ($cartItems as $item) {
+            $product = Product::find($item->product_id);
+            $subtotal = $product->price * $item->quantity;
+
+            OrderItem::create([
+                'id' => Str::uuid(),
+                'order_id' => $order->id,
+                'product_id' => $product->id,
+                'product_name' => $product->name,
+                'quantity' => $item->quantity,
+                'price' => $product->price,
+                'subtotal' => $subtotal,
+            ]);
+
+            $total += $subtotal;
+        }
+
+        // Update total amount
+        $order->update(['total_amount' => $total]);
+
+        // Clear cart
+        Cart::where('user_id', $userId)->delete();
+
+        DB::commit();
+
+        return response()->json(['order_id' => $order->id]);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json(['message' => 'Checkout failed: ' . $e->getMessage()], 500);
+    }
+}
 }

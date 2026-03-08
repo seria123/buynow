@@ -7,6 +7,7 @@ import { useCart } from '../../cart.js';
 
 
 const {cart, cartCount, cartTotal, loadCart } = useCart();
+const wishlistCount = computed(() => page.props.wishlist_count || 0);
 const isCartDropdownOpen = ref(false);
 
 
@@ -53,6 +54,7 @@ const flattenedTreeCache = new WeakMap();
 
 // Get logged-in user and categories from Inertia props
 const page = usePage();
+// Make user reactive so it updates when page data changes
 const user = computed(() => page.props.auth?.user);
 const dbCategories = computed(() => page.props.categories || []);
 
@@ -172,7 +174,7 @@ const scheduleDropdownClose = () => {
     cancelDropdownClose();
     dropdownCloseTimeout = setTimeout(() => {
         dropdownCategoryId.value = null;
-    }, 300);
+    }, 400);
 };
 
 const handleNavMouseEnter = (item) => {
@@ -240,10 +242,8 @@ const handleLogout = () => {
 </script>
 
 <template>
- 
-   
-    <div class="sticky top-0 z-40 shadow-lg"></div>
-        <!-- Top Bar --><div class="bg-linear-to-br from-yellow-400 via-yellow-300 to-yellow-400 dark:bg-zinc-900 border-b border-black-500/30 dark:border-zinc-800 transition-colors duration-300 relative">
+<div class="sticky top-0 z-50 shadow-lg">
+<div class="bg-linear-to-br from-yellow-400 via-yellow-300 to-yellow-400 dark:bg-zinc-900 shadow-md transition-colors duration-300 relative">
         <div
             class="bg-gray-900 dark:bg-zinc-950 text-gray-300 dark:text-gray-400 py-2.5 px-4 text-xs hidden md:block border-b border-yellow-400/20 dark:border-zinc-900">
             <div class="container mx-auto flex items-center justify-between">
@@ -271,7 +271,7 @@ const handleLogout = () => {
                         </svg>
                         <span>{{ isDark ? 'Light' : 'Dark' }}</span>
                     </button>
-                    <a href="#" class="hover:text-yellow-400 transition-colors flex items-center gap-1.5 group">
+                   <Link :href="route('stores.index')"class="hover:text-yellow-400 transition-colors flex items-center gap-1.5 group">
                         <svg class="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none"
                             stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -280,15 +280,28 @@ const handleLogout = () => {
                                 d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                         <span>Store Locator</span>
-                    </a>
-                    <a href="#" class="hover:text-yellow-400 transition-colors flex items-center gap-1.5 group">
-                        <svg class="w-3.5 h-3.5 group-hover:scale-110 transition-transform" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span>Track Order</span>
-                    </a>
+                  </Link>
+                    <Link href="/orders/track" 
+      class="hover:text-yellow-400 transition-colors flex items-center gap-1.5 group"
+    >
+      <!-- Icon -->
+      <svg
+        class="w-3.5 h-3.5 group-hover:scale-110 transition-transform"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
+      </svg>
+      <!-- Text -->
+      <span>Track Order</span>
+    </Link>
+                   
                     <div class="flex items-center gap-1.5 cursor-pointer hover:text-yellow-400 transition-colors">
                         <span>KES</span>
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -305,7 +318,7 @@ const handleLogout = () => {
                                 <div class="relative">
                                     <div
                                         class="w-7 h-7 rounded-full border-2 border-yellow-400/50 overflow-hidden ring-2 ring-yellow-400/30 shadow-md shadow-yellow-400/20">
-                                        <img :src="user.avatar" :alt="user.name" class="w-full h-full object-cover" />
+                                        <img :src="user?.avatar" :alt="user?.name" class="w-full h-full object-cover" />
                                     </div>
                                     <!-- Online indicator -->
                                     <span
@@ -349,7 +362,7 @@ const handleLogout = () => {
                                             <div class="flex-1 min-w-0">
                                                 <div
                                                     class="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                                                    {{ user.name }}
+                                                    {{ user?.name }}
                                                 </div>
                                                 <div class="text-xs text-gray-600 dark:text-gray-400 truncate">{{
                                                     user.email }}</div>
@@ -360,7 +373,7 @@ const handleLogout = () => {
                                     <!-- Menu Items -->
                                     <div class="py-1 bg-white dark:bg-gray-800 rounded-b-md">
                                         <Link href="/"
-                                            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-gray-700/50 hover:text-yellow-600 dark:hover:text-yellow-400 transition-all duration-200 group">
+                                            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-gray-700/50 hover:text-yellow-400 dark:hover:text-yellow-400 transition-all duration-200 group">
                                         <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none"
                                             stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -369,7 +382,7 @@ const handleLogout = () => {
                                         <span>Dashboard</span>
                                         </Link>
                                         <Link href="/profile"
-                                            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-gray-700/50 hover:text-yellow-600 dark:hover:text-yellow-400 transition-all duration-200 group">
+                                            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-gray-700/50 hover:text-yellow-400 dark:hover:text-yellow-400 transition-all duration-200 group">
                                         <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none"
                                             stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -377,17 +390,18 @@ const handleLogout = () => {
                                         </svg>
                                         <span>My Profile</span>
                                         </Link>
-                                        <Link href="/orders"
-                                            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-gray-700/50 hover:text-yellow-600 dark:hover:text-yellow-400 transition-all duration-200 group">
-                                        <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none"
-                                            stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                        <span>My Orders</span>
-                                        </Link>
-                                        <Link href="/settings"
-                                            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-gray-700/50 hover:text-yellow-600 dark:hover:text-yellow-400 transition-all duration-200 group">
+                                       <Link 
+  :href="route('orders.index')" 
+  class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-gray-700/50 hover:text-yellow-400 dark:hover:text-yellow-400 transition-all duration-200 group"
+>
+<svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M4 4h16v16H4V4zm4 4h8v2H8V8zm0 4h8v2H8v-2z" />
+</svg>
+    <span>My Orders</span>
+</Link>
+                                        <Link href="/profile/settings"
+                                            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-gray-700/50 hover:text-yellow-400 dark:hover:text-yellow-400 transition-all duration-200 group">
                                         <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none"
                                             stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -540,7 +554,7 @@ const handleLogout = () => {
                             </transition>
                         </div>
                         <button
-                            class="px-6 py-3.5 bg-linear-to-r from-gray-900 to-black dark:from-yellow-600 dark:to-yellow-700 text-white hover:from-black hover:to-gray-900 dark:hover:from-yellow-700 dark:hover:to-yellow-800 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center">
+                            class="px-6 py-3.5 bg-linear-to-r from-gray-900 to-black dark:from-yellow-400 dark:to-yellow-700 text-white hover:from-black hover:to-gray-900 dark:hover:from-yellow-700 dark:hover:to-yellow-800 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -569,14 +583,20 @@ const handleLogout = () => {
                                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                     </button>
-                    <button
+                    <Link
+                        href="/profile/wishlist"
                         class="p-2.5 hover:bg-black/10 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 hidden md:flex hover:scale-105 active:scale-95 group relative">
                         <svg class="w-5 h-5 text-gray-900 group-hover:scale-110 transition-transform" fill="none"
                             stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                         </svg>
-                    </button>
+                        <span
+                            v-if="wishlistCount > 0"
+                            class="absolute top-1 left-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold shadow-lg">
+                            {{ wishlistCount }}
+                        </span>
+                    </Link>
                     <div
   class="relative"
   @mouseenter="openDropdown"
@@ -603,7 +623,7 @@ const handleLogout = () => {
 
     <span
       v-if="displayCount"
-      class="absolute top-1 left-1 bg-linear-to-br from-gray-900 to-black dark:from-yellow-500 dark:to-yellow-600 text-white dark:text-gray-900 text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold shadow-lg animate-pulse p-"
+      class="absolute top-1 left-1 bg-linear-to-br from-gray-900 to-black dark:from-yellow-500 dark:to-yellow-400 text-white dark:text-gray-900 text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold shadow-lg animate-pulse p-"
     >
       {{ displayCount }}
     </span>
@@ -642,7 +662,7 @@ const handleLogout = () => {
         </div>
     
 
-        <div class="border-t border-yellow-600/40 mt-2 pt-2 flex justify-between font-semibold">
+        <div class="border-t border-yellow-400/40 mt-2 pt-2 flex justify-between font-semibold">
           <span>Total</span>
           <span>{{ displayTotal }}</span>
         </div>
@@ -679,7 +699,7 @@ const handleLogout = () => {
                         <input v-model="searchQuery" type="text" placeholder="Search for Products"
                             class="flex-1 px-5 py-3 focus:outline-none text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-sm bg-transparent" />
                         <button
-                            class="px-5 py-3 bg-linear-to-r from-gray-900 to-black dark:from-yellow-600 dark:to-yellow-700 text-white hover:from-black hover:to-gray-900 dark:hover:from-yellow-700 dark:hover:to-yellow-800 transition-all duration-300">
+                            class="px-5 py-3 bg-linear-to-r from-gray-900 to-black dark:from-yellow-400 dark:to-yellow-700 text-white hover:from-black hover:to-gray-900 dark:hover:from-yellow-700 dark:hover:to-yellow-800 transition-all duration-300">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -691,16 +711,18 @@ const handleLogout = () => {
            
 
         <!-- Desktop Navigation Menu -->
+        <!-- Backdrop overlay when dropdown is open (removed for solid display) -->
         <div
-            class="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-b border-gray-100 dark:border-zinc-800 shadow-sm hidden lg:block relative">
+            class="bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 shadow-sm hidden lg:block relative"
+            @mouseleave="scheduleDropdownClose"
+            @mouseenter="cancelDropdownClose">
             <div class="container mx-auto">
                 <nav class="flex items-center justify-center gap-3">
                     <template v-for="(item, index) in navigation" :key="item.name">
-                        <div class="group/nav" @mouseenter="handleNavMouseEnter(item)"
-                            @mouseleave="handleNavMouseLeave(item)">
-                            <Link :href="item.href"
-                                class="py-4 px-4 text-sm font-medium flex items-center gap-1.5 transition-all duration-300 relative"
-                                :class="(isNavItemActive(item) || dropdownCategoryId === item.category?.id) ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'">
+                        <div class="group/nav" @mouseenter="handleNavMouseEnter(item)" @mouseleave="handleNavMouseLeave(item)">
+                            <Link :href="item.href" @click="dropdownCategoryId = null"
+                                class="py-4 px-4 text-sm font-medium flex items-center gap-1.5 transition-all duration-300 relative cursor-pointer"
+                                :class="(isNavItemActive(item) || dropdownCategoryId === item.category?.id) ? 'text-yellow-400 dark:text-yellow-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'">
                             <span>{{ item.name }}</span>
                             <svg v-if="item.hasDropdown" class="w-4 h-4 transition-transform duration-300"
                                 :class="(isNavItemActive(item) || dropdownCategoryId === item.category?.id) ? 'text-yellow-500 rotate-180' : 'text-gray-400 group-hover/nav:text-gray-600 dark:group-hover/nav:text-gray-300'"
@@ -715,17 +737,13 @@ const handleLogout = () => {
                                 :class="isNavItemActive(item) ? 'scale-x-100' : 'scale-x-0 group-hover/nav:scale-x-100'"></span>
                             </Link>
 
-                            <!-- Dropdown Menu -->
-                            <transition enter-active-class="transition duration-200 ease-out"
-                                enter-from-class="opacity-0 -translate-y-3" enter-to-class="opacity-100 translate-y-0"
-                                leave-active-class="transition duration-300 ease-in"
-                                leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 -translate-y-3">
+                            <!-- Dropdown Menu (solid display without animation) -->
                                 <div v-if="item.category && dropdownCategoryId === item.category.id"
-                                    class="absolute left-0 top-full w-full z-40" @mouseenter="cancelDropdownClose"
+                                    class="absolute left-0 top-full w-full z-50 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800" @mouseenter="cancelDropdownClose"
                                     @mouseleave="scheduleDropdownClose">
-                                    <div class="container mx-auto px-4">
+                                    <div class="container mx-auto px-4 py-4">
                                         <div
-                                            class="bg-white dark:bg-zinc-900 shadow-2xl rounded-2xl border border-gray-200 dark:border-zinc-800 backdrop-blur-xl max-h-[500px] overflow-y-auto mt-0">
+                                            class="max-h-[500px] overflow-y-auto">
                                             <div v-for="node in flattenCategoryTree(item.category)"
                                                 :key="`${node.category.id}-${node.depth}`"
                                                 class="border-b border-gray-100 dark:border-zinc-800 last:border-0">
@@ -737,7 +755,7 @@ const handleLogout = () => {
                                                     <!-- Category Header -->
                                                     <div class="flex items-center justify-between mb-4">
                                                         <Link :href="categoryHref(node.category.slug)"
-                                                            class="text-lg font-bold text-gray-900 dark:text-white hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors flex items-center gap-2 group">
+                                                            class="text-lg font-bold text-gray-900 dark:text-white hover:text-yellow-400 dark:hover:text-yellow-400 transition-colors flex items-center gap-2 group">
                                                         <svg class="w-5 h-5 text-yellow-500" fill="none"
                                                             stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -751,7 +769,7 @@ const handleLogout = () => {
                                                         </span>
                                                         </Link>
                                                         <Link :href="categoryHref(node.category.slug)"
-                                                            class="text-sm font-medium text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 flex items-center gap-1 group">
+                                                            class="text-sm font-medium text-yellow-400 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 flex items-center gap-1 group">
                                                         <span>View All</span>
                                                         <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform"
                                                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -782,7 +800,7 @@ const handleLogout = () => {
                                                             </svg>
                                                         </div>
                                                         <h4
-                                                            class="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-2 mb-1 group-hover/item:text-yellow-600 dark:group-hover/item:text-yellow-400 transition-colors">
+                                                            class="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-2 mb-1 group-hover/item:text-yellow-400 dark:group-hover/item:text-yellow-400 transition-colors">
                                                             {{ product.name }}</h4>
                                                         <p class="text-sm font-bold text-gray-900 dark:text-white">{{
                                                             formatCurrency(product.price) }}</p>
@@ -793,7 +811,6 @@ const handleLogout = () => {
                                         </div>
                                     </div>
                                 </div>
-                            </transition>
                         </div>
 
                         <!-- Separator (not after last item) -->
@@ -848,7 +865,7 @@ const handleLogout = () => {
                                                     class="w-full h-full object-cover" />
                                             </div>
                                             <div class="flex-1 min-w-0">
-                                                <div class="text-sm font-bold text-gray-900 truncate">{{ user.name }}
+                                                <div class="text-sm font-bold text-gray-900 truncate">{{ user?.name }}
                                                 </div>
                                                 <div class="text-xs text-gray-600 truncate">{{ user.email }}</div>
                                             </div>
@@ -857,7 +874,7 @@ const handleLogout = () => {
 
                                     <!-- User Menu Items -->
                                     <Link href="/"
-                                        class="flex items-center gap-3 py-3 px-4 text-gray-700 dark:text-gray-200 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 group mb-2">
+                                        class="flex items-center gap-3 py-3 px-4 text-gray-700 dark:text-gray-200 hover:text-yellow-400 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 group mb-2">
                                     <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none"
                                         stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -866,7 +883,7 @@ const handleLogout = () => {
                                     <span class="font-medium">Dashboard</span>
                                     </Link>
                                     <Link href="/profile"
-                                        class="flex items-center gap-3 py-3 px-4 text-gray-700 dark:text-gray-200 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 group mb-2">
+                                        class="flex items-center gap-3 py-3 px-4 text-gray-700 dark:text-gray-200 hover:text-yellow-400 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 group mb-2">
                                     <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none"
                                         stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -875,7 +892,7 @@ const handleLogout = () => {
                                     <span class="font-medium">My Profile</span>
                                     </Link>
                                     <Link href="/orders"
-                                        class="flex items-center gap-3 py-3 px-4 text-gray-700 dark:text-gray-200 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 group mb-2">
+                                        class="flex items-center gap-3 py-3 px-4 text-gray-700 dark:text-gray-200 hover:text-yellow-400 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 group mb-2">
                                     <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none"
                                         stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -883,8 +900,8 @@ const handleLogout = () => {
                                     </svg>
                                     <span class="font-medium">My Orders</span>
                                     </Link>
-                                    <Link href="/settings"
-                                        class="flex items-center gap-3 py-3 px-4 text-gray-700 dark:text-gray-200 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 group mb-2">
+                                    <Link href="/profile/settings"
+                                        class="flex items-center gap-3 py-3 px-4 text-gray-700 dark:text-gray-200 hover:text-yellow-400 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 group mb-2">
                                     <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none"
                                         stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -943,7 +960,7 @@ const handleLogout = () => {
                                 <div v-for="item in navigation" :key="item.name">
                                     <Link :href="item.href"
                                         class="flex items-center justify-between py-3.5 px-4 rounded-xl transition-all duration-300 font-medium group"
-                                        :class="isNavItemActive(item) ? 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 shadow-inner' : 'text-gray-700 dark:text-gray-200 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 hover:text-yellow-600 dark:hover:text-yellow-400'">
+                                        :class="isNavItemActive(item) ? 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 shadow-inner' : 'text-gray-700 dark:text-gray-200 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 hover:text-yellow-400 dark:hover:text-yellow-400'">
                                     <span>{{ item.name }}</span>
                                     <svg v-if="item.hasDropdown"
                                         class="w-5 h-5 transition-transform group-hover:translate-x-1"
@@ -971,6 +988,7 @@ const handleLogout = () => {
 
         </transition>
         </div>
+</div>
        
   
 </template>

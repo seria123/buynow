@@ -16,9 +16,11 @@
         "laravel/socialite": "^5.23",
         "laravel/tinker": "^2.10.1",
         "owen-it/laravel-auditing": "^14.0",
+        "safaricom/mpesa": "^1.0",
         "spatie/laravel-medialibrary": "^11.17",
         "spatie/laravel-permission": "^6.23",
         "spatie/laravel-settings": "^3.5",
+        "stripe/stripe-php": "^19.4",
         "tightenco/ziggy": "^2.6"
     },
     "require-dev": {

@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use OwenIt\Auditing\Auditable;
+use App\Models\Sales\Store;
+
 use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -30,6 +32,7 @@ class Product extends Model implements AuditableContract, HasMedia
         'category_id',
         'attribute_family_id',
         'short_description',
+        'store_id',
         'description',
         'price',
         'compare_price',
@@ -43,7 +46,14 @@ class Product extends Model implements AuditableContract, HasMedia
         'reviewer_id',
         'reviewed_at',
         'review_notes',
+     
     ];
+    protected $appends = [
+    'thumbnail_url',
+];
+
+
+    
 
     protected function casts(): array
     {
@@ -96,61 +106,48 @@ class Product extends Model implements AuditableContract, HasMedia
     /**
      * Register media collections.
      */
-    public function registerMediaCollections(): void
+   public function registerMediaCollections(): void
     {
-        $this->addMediaCollection('images')
-            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
-
         $this->addMediaCollection('thumbnail')
-            ->singleFile()
-            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+             ->useDisk('media') // <- important
+             ->singleFile();
     }
 
-    /**
-     * Register media conversions.
-     */
-    public function registerMediaConversions(?Media $media = null): void
+       public function registerMediaConversions(Media $media = null): void
     {
         $this->addMediaConversion('thumb')
-            ->width(500)
-            ->height(500)
-            ->performOnCollections('thumbnail')
-            ->nonQueued();
+             ->width(300)
+             ->height(300)
+             ->sharpen(10);
+           
     }
 
     /**
      * Get the thumbnail media instance.
      */
-    public function getThumbnailAttribute(): ?Media
-    {
-        return $this->getFirstMedia('thumbnail');
-    }
+    public function getThumbnailMediaAttribute(): ?Media
+{
+    return $this->getFirstMedia('thumbnail');
+}
 
     /**
      * Get the thumbnail URL attribute.
      * Returns the thumbnail conversion URL if available, otherwise the original thumbnail URL,
      * or falls back to the first product image if no thumbnail exists.
      */
-    public function getThumbnailUrlAttribute(): ?string
-    {
-        $thumbnail = $this->getFirstMedia('thumbnail');
+ public function getThumbnailUrlAttribute(): string
+{
+    // Get converted thumbnail if exists
+    $url = $this->getFirstMediaUrl('thumbnail', 'thumb');
 
-        if ($thumbnail) {
-            // Return the 'thumb' conversion if it exists, otherwise return the original
-            return $thumbnail->hasGeneratedConversion('thumb')
-                ? $thumbnail->getUrl('thumb')
-                : $thumbnail->getUrl();
-        }
-
-        // Fallback to first product image if no thumbnail exists
-        $firstImage = $this->getFirstMedia('images');
-        if ($firstImage) {
-            return $firstImage->getUrl();
-        }
-
-        return null;
+    // If no conversion, get original file
+    if (!$url) {
+        $url = $this->getFirstMediaUrl('thumbnail');
     }
 
+    // Final fallback placeholder
+    return $url ?: asset('images/placeholder.png');
+}
     /**
      * Check if the product has a thumbnail.
      */
@@ -205,4 +202,12 @@ class Product extends Model implements AuditableContract, HasMedia
             $admin->notify(new ProductApprovalRequestNotification($this, $this->creator));
         }
     }
+    public function wishlistedBy()
+{
+    return $this->belongsToMany(\App\Models\User::class, 'user_product_wishlist', 'product_id', 'user_id');
+}
+public function store()
+{
+    return $this->belongsTo(Store::class);
+}
 }

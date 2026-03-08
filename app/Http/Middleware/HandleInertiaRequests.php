@@ -49,7 +49,7 @@ class HandleInertiaRequests extends Middleware
                 'status' => fn () => $request->session()->get('status'),
             ],
             'auth' => [
-                'user' => fn () => $request->user(),
+                'user' => fn () => $request->user() ? $request->user()->load('media') : null,
             ],
             'categories' => fn () => $this->navigationCategories(),
         ];

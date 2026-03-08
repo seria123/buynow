@@ -20,6 +20,7 @@ return new class extends Migration
                 ->nullable()
                 ->constrained('brands')
                 ->onDelete('SET NULL');
+            $table->string('thumbnail')->nullable();
             $table->foreignUlid('category_id')
                 ->nullable()
                 ->constrained('categories')

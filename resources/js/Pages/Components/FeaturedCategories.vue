@@ -52,7 +52,7 @@ const getCategoryIcon = (category) => {
             <!-- Section Header -->
             <div class="text-center mb-12">
                 <p
-                    class="text-sm font-semibold tracking-wide text-yellow-600 dark:text-yellow-500 uppercase mb-3 flex items-center justify-center gap-2">
+                    class="text-sm font-semibold tracking-wide text-yellow-400 dark:text-yellow-400 uppercase mb-3 flex items-center justify-center gap-2">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
                     </svg>
@@ -86,7 +86,7 @@ const getCategoryIcon = (category) => {
 
                         <!-- Category Name -->
                         <h3
-                            class="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">
+                            class="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-yellow-400 dark:group-hover:text-yellow-400 transition-colors">
                             {{ category.name }}
                         </h3>
 
@@ -100,7 +100,7 @@ const getCategoryIcon = (category) => {
                         <!-- Arrow Icon -->
                         <div
                             class="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-                            <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor"
+                            <svg class="w-5 h-5 text-yellow-400 dark:text-yellow-400" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M17 8l4 4m0 0l-4 4m4-4H3" />

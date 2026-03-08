@@ -8,6 +8,7 @@ use App\Models\Catalogue\Attribute;
 use App\Models\Catalogue\Brand;
 use App\Models\Catalogue\Category;
 use App\Models\Catalogue\Product;
+use App\Models\Catalogue\ProductVariant;
 use App\Models\Catalogue\ProductAttributeValue;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -44,19 +45,48 @@ class ProductsController extends Controller
             'filters' => $this->presentFilters($filters, $priceRange, $category),
         ]);
     }
-
     /**
      * Transform the product into the array expected by the frontend.
      */
-    private function transformProduct(Product $product): Collection
-    {
-        $basePayload = [
-            'id' => $product->id,
-            'name' => $product->name,
+ private function transformProduct(Product $product): Collection
+{
+    $basePayload = [
+        'id' => $product->id,
+        'name' => $product->name,
+        'slug' => $product->slug,
+        'price' => $product->price,
+        'compare_price' => $product->compare_price,
+       'thumbnail_url' =>
+    $product->getFirstMediaUrl('thumbnail')
+        ?: asset('images/placeholder.png'),
+        'category' => $product->category ? [
+            'id' => $product->category->id,
+            'name' => $product->category->name,
+            'slug' => $product->category->slug,
+        ] : null,
+        'brand' => $product->brand ? [
+            'id' => $product->brand->id,
+            'name' => $product->brand->name,
+        ] : null,
+        'stats' => [
+            'total_stock' => $product->getTotalStock(),
+            'variant_count' => $product->variants->count(),
+            'has_variants' => $product->hasVariants(),
+        ],
+        'variant_badges' => [],
+        'is_variant' => false,
+    ];
+
+    return collect([$basePayload])->merge(
+        $product->variants->map(fn ($variant) => [
+            'id' => $variant->id,
+            'name' => $variant->display_name,
             'slug' => $product->slug,
-            'price' => $product->price,
-            'compare_price' => $product->compare_price,
-            'thumbnail_url' => $product->thumbnail_url,
+            'price' => $variant->price ?? $product->price,
+            'compare_price' => $variant->compare_price ?? $product->compare_price,
+            'thumbnail_url' => $variant->getFirstMediaUrl('thumbnail', 'thumb') 
+                               ?: $product->thumbnail_url
+                               ?: asset('images/placeholder.png'),
             'category' => $product->category ? [
                 'id' => $product->category->id,
                 'name' => $product->category->name,
@@ -67,51 +97,22 @@ class ProductsController extends Controller
                 'name' => $product->brand->name,
             ] : null,
             'stats' => [
-                'total_stock' => $product->getTotalStock(),
-                'variant_count' => $product->variants->count(),
-                'has_variants' => $product->hasVariants(),
+                'total_stock' => $variant->quantity ?? 0,
+                'variant_count' => 0,
+                'has_variants' => false,
             ],
-            'variant_badges' => [],
-            'is_variant' => false,
-        ];
-
-        $variantCards = $product->variants->map(function ($variant) use ($product) {
-            return [
-                'id' => $variant->id,
-                'name' => $variant->display_name,
-                'slug' => $product->slug,
-                'price' => $variant->price ?? $product->price,
-                'compare_price' => $variant->compare_price ?? $product->compare_price,
-                'thumbnail_url' => $variant->thumbnail_url ?? $product->thumbnail_url,
-                'category' => $product->category ? [
-                    'id' => $product->category->id,
-                    'name' => $product->category->name,
-                    'slug' => $product->category->slug,
-                ] : null,
-                'brand' => $product->brand ? [
-                    'id' => $product->brand->id,
-                    'name' => $product->brand->name,
-                ] : null,
-                'stats' => [
-                    'total_stock' => $variant->quantity ?? 0,
-                    'variant_count' => 0,
-                    'has_variants' => false,
-                ],
-                'variant_badges' => $variant->variantOptions
-                    ->map(fn ($option) => [
-                        'attribute' => $option->attribute?->name,
-                        'value' => $option->value,
-                    ])
-                    ->filter(fn ($option) => $option['attribute'] && $option['value'])
-                    ->values()
-                    ->toArray(),
-                'is_variant' => true,
-            ];
-        });
-
-        return collect([$basePayload])->merge($variantCards)->values();
-    }
-
+            'variant_badges' => $variant->variantOptions
+                ->map(fn ($option) => [
+                    'attribute' => $option->attribute?->name,
+                    'value' => $option->value,
+                ])
+                ->filter(fn ($option) => $option['attribute'] && $option['value'])
+                ->values()
+                ->toArray(),
+            'is_variant' => true,
+        ])
+    )->values();
+}
     private function baseProductsQuery(): Builder
     {
         return Product::query()
@@ -119,6 +120,7 @@ class ProductsController extends Controller
                 'category:id,name,slug',
                 'brand:id,name',
                 'variants.variantOptions.attribute',
+                'media',
             ])
             ->tap(function (Builder $query) {
                 $this->applyVisibilityConstraints($query);
@@ -369,4 +371,77 @@ class ProductsController extends Controller
             'attributes' => $filters['attributes'],
         ];
     }
+    public function show(Product $product)
+    {
+        return Inertia::render('Products/Show', [
+            'product' => $product->load('category', 'brand', 'variants'), // load relations as needed
+        ]);
+    }
+public function store(Request $request)
+{
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'slug' => 'nullable|string|max:255|unique:products,slug',
+        'sku' => 'nullable|string|max:100|unique:products,sku',
+        'brand_id' => 'nullable|exists:brands,id',
+        'category_id' => 'nullable|exists:categories,id',
+        'price' => 'required|numeric|min:0',
+        'compare_price' => 'nullable|numeric|min:0',
+        'cost' => 'nullable|numeric|min:0',
+        'quantity' => 'nullable|integer|min:0',
+        'thumbnail' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+        // add other fields as needed
+    ]);
+
+    // Create product with fillable fields
+    $product = Product::create($request->only([
+        'name', 'slug', 'sku', 'brand_id', 'category_id', 
+        'price', 'compare_price', 'cost', 'quantity', 
+        'short_description', 'description', 
+        'status', 'published', 'is_featured'
+    ]));
+
+    // Handle thumbnail upload
+    if ($request->hasFile('thumbnail')) {
+        $product->addMedia($request->file('thumbnail'))
+                ->toMediaCollection('thumbnail', 'media'); // store in public disk
+    }
+
+    return redirect()->route('products.index')
+                     ->with('success', 'Product created successfully.');
+}
+public function update(Request $request, Product $product)
+{
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'slug' => 'nullable|string|max:255|unique:products,slug,' . $product->id,
+        'sku' => 'nullable|string|max:100|unique:products,sku,' . $product->id,
+        'brand_id' => 'nullable|exists:brands,id',
+        'category_id' => 'nullable|exists:categories,id',
+        'price' => 'required|numeric|min:0',
+        'compare_price' => 'nullable|numeric|min:0',
+        'cost' => 'nullable|numeric|min:0',
+        'quantity' => 'nullable|integer|min:0',
+        'thumbnail' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+        // add other fields as needed
+    ]);
+
+    // Update fillable fields
+    $product->update($request->only([
+        'name', 'slug', 'sku', 'brand_id', 'category_id', 
+        'price', 'compare_price', 'cost', 'quantity', 
+        'short_description', 'description', 
+        'status', 'published', 'is_featured'
+    ]));
+
+    // Replace old thumbnail if new file uploaded
+    if ($request->hasFile('thumbnail')) {
+        $product->clearMediaCollection('thumbnail'); // deletes old thumbnail
+        $product->addMedia($request->file('thumbnail'))
+                ->toMediaCollection('thumbnail', 'media');
+    }
+
+    return redirect()->route('products.index')
+                     ->with('success', 'Product updated successfully.');
+}
 }

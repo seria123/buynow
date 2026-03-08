@@ -7,6 +7,12 @@ use App\Http\Controllers\Pages\PagesController;
 use App\Http\Controllers\Pages\ProductsController;
 use App\Http\Controllers\Pages\ProfileController;
 use App\Http\Controllers\Pages\CartController;
+use App\Http\Controllers\Pages\OrderController;
+use App\Http\Controllers\Pages\WishlistController;
+use App\Http\Controllers\Pages\SettingsController;
+use App\Http\Controllers\Pages\SupportController;
+use App\Http\Controllers\Pages\PaymentController;
+use App\Http\Controllers\Pages\StoreController;
 use App\Models\Catalogue\Category;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,6 +21,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [PagesController::class, 'index']);
 
 Route::get('/products', [ProductsController::class, 'index'])->name('products.index');
+
+Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');
 
 Route::get('/categories/all', function () {
     return redirect()->route('products.index');
@@ -89,5 +97,48 @@ Route::middleware('web')->group(function () {
         Route::post('/cart/checkout', [CartController::class, 'checkout']);
         Route::post('/cart/merge', [CartController::class, 'merge']);
     });
+});
+
+// Order routes
+Route::prefix('profile/orders')->middleware(['auth'])->group(function () {
+    Route::get('/', [OrderController::class, 'index'])->name('orders.index');
+    Route::get('/{order}', [OrderController::class, 'show'])->name('orders.show');
+    Route::delete('/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
+    Route::post('/{order}/mpesa-pay', [OrderController::class, 'pay'])->name('orders.mpesa.pay');
+    Route::get('/{order}/status', [OrderController::class, 'status'])->name('orders.status');
+    Route::post('/{order}/return-request', [OrderController::class, 'requestReturn'])->name('orders.return.request');
+});
+
+// Track order routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('/orders/track', [OrderController::class, 'trackForm'])->name('orders.track.form');
+    Route::post('/orders/track', [OrderController::class, 'track'])->name('orders.track');
+});
+
+Route::post('/cart/checkout', [OrderController::class, 'checkout'])->name('checkout');
+
+// Wishlist routes
+Route::middleware('auth')->group(function () {
+    Route::get('/profile/wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
+    Route::post('/profile/wishlist/{product}', [WishlistController::class, 'add'])->name('wishlist.add');
+    Route::delete('/profile/wishlist/{product}', [WishlistController::class, 'remove'])->name('wishlist.remove');
+    Route::delete('/profile/wishlist-old', [WishlistController::class, 'deleteOld'])->name('wishlist.deleteOld');
+});
+
+// Settings routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('/profile/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::post('/profile/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::delete('/profile/settings/account', [SettingsController::class, 'deleteAccount'])->name('settings.deleteAccount');
+});
+
+// Payment routes (M-Pesa Daraja)
+Route::post('/payments/{order}/mpesa', [PaymentController::class, 'mpesaPay']);
+Route::post('/mpesa/callback', [PaymentController::class, 'mpesaCallback']);
+
+// Support routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('/support/messages', [SupportController::class, 'fetchMessages']);
+    Route::post('/support/message', [SupportController::class, 'store']);
 });
 

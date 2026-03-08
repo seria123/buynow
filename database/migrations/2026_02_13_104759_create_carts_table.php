@@ -11,16 +11,34 @@ return new class extends Migration
      */
     public function up(): void
     {
+        
+    
         Schema::create('carts', function (Blueprint $table) {
-            $table->ulid('id')->primary();
-            $table->foreignUlid('user_id')->constrained('users')->onDelete('CASCADE'); // Connect cart to a user
-            $table->foreignUlid('product_id')->constrained('products')->onDelete('CASCADE'); // Product being added
-            $table->string('product_name'); // Store product name at the time of adding
-            $table->string('category_name')->nullable(); // Optional: product category
-            $table->decimal('price', 10, 2); // Store price at the time of adding
-            $table->integer('quantity')->default(1); // How many
+            // Use UUID for cart ID
+            $table->uuid('id')->primary();
+
+             
+
+            // UUID references for user and product
+            $table->uuid('user_id')->nullable();
+            $table->uuid('product_id');
+
+            // Cart item details
+            $table->string('product_name');
+            $table->string('category_name')->nullable();
+            $table->integer('quantity')->default(1);
+            $table->decimal('price', 10, 2);
+              $table->string('status')->default('pending');
+
             $table->timestamps();
-    });
+
+            // Foreign keys
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
+
+            // Optional: ensure uniqueness of same product per user
+            $table->unique(['user_id', 'product_id']);
+        });
        }
 
     /**

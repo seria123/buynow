@@ -1,15 +1,17 @@
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useCart } from '../../cart.js';
 import ProfileLayout from '../Layouts/ProfileLayout.vue';
 import MainLayout from '../Layouts/MainLayout.vue';
 import { Head } from '@inertiajs/vue3';
-import { toast } from "vue3-toastify";
-import { Inertia } from '@inertiajs/inertia';
+
+import { router } from '@inertiajs/vue3';
+
 import "vue3-toastify/dist/index.css";
 
 // Use the cart composable
 const { cart, cartCount, cartTotal, isLoading, loadCart, addToCart, removeFromCart, clearCart, checkout } = useCart();
+const loadingCheckout = ref(false);
 
 // Load cart when page mounts
 onMounted(() => {
@@ -32,15 +34,13 @@ const clearAll = async () => {
     await clearCart();
 };
 
-// Checkout handler
+
 const handleCheckout = async () => {
-    try {
-        await checkout();
-        toast.success('Checkout Successful!', { autoClose: 3000,position: 'bottom-left', });
-    } catch (err) {
-        console.error(err);
-        toast.error('Checkout failed. Please try again.', { autoClose: 3000,position: 'bottom-left', });
-    }
+    loadingCheckout.value = true;
+
+    await router.post(route('checkout'), {}, {
+        onFinish: () => loadingCheckout.value = false
+    });
 };
 
 // Continue shopping button handler
@@ -90,9 +90,9 @@ const continueShopping = () => {
               <button @click="clearAll" :disabled="isLoading" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 disabled:opacity-50">
                 {{ isLoading ? 'Loading...' : 'Clear Cart' }}
               </button>
-              <button @click="handleCheckout" :disabled="isLoading" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:opacity-50">
-                {{ isLoading ? 'Processing...' : 'Checkout' }}
-              </button>
+             <button @click="router.post(route('checkout'))" class="bg-yellow-500 text-white px-4 py-2 rounded">
+  Checkout
+</button>
             </div>
           </div>
         </div>

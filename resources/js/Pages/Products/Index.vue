@@ -1,9 +1,10 @@
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { computed, ref, reactive, onMounted, onUnmounted } from 'vue';
+import { Head, router, usePage,Link} from '@inertiajs/vue3';
 import MainLayout from '../Layouts/MainLayout.vue';
 import { useCart } from '../../cart.js';
 import { toast } from 'vue3-toastify';
+
 import 'vue3-toastify/dist/index.css';
 import ProductFilters from '../Components/ProductFilters.vue';
 
@@ -38,6 +39,38 @@ const props = defineProps({
     },
 });
 
+
+const wishlist = ref(props.wishlistItems || []);
+const wishlisted = reactive({});
+
+// Initialize based on wishlistItems if provided
+if (props.wishlistItems?.length) {
+    props.wishlistItems.forEach(p => {
+        if (p?.id) wishlisted[p.id] = true;
+    });
+}
+
+
+function addToWishlist(product) {
+    if (!product?.id) return;
+
+    // Optimistic UI toggle
+    wishlisted[product.id] = !wishlisted[product.id];
+
+    // Send request to backend
+    router.post(`/profile/wishlist/${product.id}`, {}, {
+        onSuccess: () => {
+            toast.success(
+                wishlisted[product.id] ? `${product.name} added to wishlist!` : `${product.name} removed from wishlist!`
+            );
+        },
+        onError: () => {
+            // revert toggle on error
+            wishlisted[product.id] = !wishlisted[product.id];
+            toast.error(`Failed to update wishlist for ${product.name}.`);
+        }
+    });
+}
 const { addToCart, loadCart } = useCart();
 
 
@@ -174,7 +207,31 @@ onMounted(() => {
 onUnmounted(() => {
     window.removeEventListener('scroll', handleScroll);
 });
-
+const saveProductImage = () => {
+  productForm.post(`/products/${product.id}/update`, {
+    forceFormData: true,
+    onSuccess: () => {
+      triggerToast('Product updated!');
+      // refresh orders so the new product image shows
+      router.reload({
+        only: ['orders'],
+        preserveState: true,
+      });
+    }
+  });
+};
+function goToWishlist(product) {
+  // Optional: Add product before redirect
+  router.post(`/profile/wishlist/${product.id}`, {}, {
+    onSuccess: () => {
+      toast.success(`${product.name} added to wishlist!`);
+      router.get('/profile/wishlist'); // redirect to wishlist page
+    },
+    onError: () => {
+      toast.error('Failed to add to wishlist.');
+    }
+  });
+}
 </script>
 
 <template>
@@ -213,20 +270,20 @@ onUnmounted(() => {
                         <div v-if="products.length" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                             <div v-for="product in products" :key="product.id"
                                 class="group bg-white dark:bg-zinc-900 shadow-md hover:shadow-2xl dark:shadow-zinc-950/50 rounded-2xl border border-gray-100 dark:border-zinc-800 overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1">
+                                
                                 <!-- Product Image -->
-                                <div class="relative overflow-hidden bg-gray-50 dark:bg-zinc-800">
-                                    <div
-                                        class="w-full aspect-square flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform duration-500">
-                                        <img v-if="product.thumbnail_url" :src="product.thumbnail_url"
-                                            :alt="product.name" class="w-full h-full object-cover" />
-                                        <div v-else class="text-gray-400 dark:text-gray-600">
-                                            <svg class="w-20 h-20" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                                    d="M3 5h18M4 7v11a2 2 0 002 2h12a2 2 0 002-2V7M9 10h.01M15 10h.01M7 15h10" />
-                                            </svg>
-                                        </div>
-                                    </div>
+<div class="relative overflow-hidden bg-gray-50 dark:bg-zinc-800 rounded-t-2xl">
+    <div
+        class="w-full aspect-square flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform duration-500"
+    >
+        <!-- Safe product thumbnail -->
+      <img
+    :src="product.thumbnail_url || '/images/placeholder.png'"
+    :alt="product.name"
+    class="w-full h-full object-cover"
+    
+/>
+    </div>
                                     <!-- Stock Badge -->
                                     <div class="absolute top-3 right-3">
                                         <span v-if="product.stats.total_stock > 0"
@@ -257,10 +314,12 @@ onUnmounted(() => {
                                     </div>
 
                                     <!-- Product Name -->
-                                    <h2
-                                        class="text-lg font-bold text-gray-900 dark:text-white line-clamp-2 mb-3 group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">
-                                        {{ product.name }}
-                                    </h2>
+                                    <Link
+  :href="route('products.show', product.id)"
+  class="text-lg font-bold text-gray-900 dark:text-white line-clamp-2 mb-3 group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors"
+>
+  {{ product.name }}
+</Link>
 
                                     <!-- Price -->
                                     <div class="mt-auto">
@@ -268,7 +327,21 @@ onUnmounted(() => {
                                             <div class="text-2xl font-bold text-gray-900 dark:text-white">
                                                 {{ formatCurrency(product.price) ?? '—' }}
                                             </div>
+                                             <svg
+    @click="product?.id && addToWishlist(product)"
+    xmlns="http://www.w3.org/2000/svg"
+    :fill="product?.id ? (wishlisted[product.id] ?? false) ? 'red' : 'black' : 'black'"
+    viewBox="0 0 24 24"
+    class="w-6 h-6 cursor-pointer hover:scale-110 transition-transform duration-150"
+    title="Add to Wishlist"
+>
+    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 
+             2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09
+             C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5
+             c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+</svg>
                                         </div>
+
 
                                         <!-- Stats -->
                                         <div class="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mb-4">
@@ -302,6 +375,9 @@ onUnmounted(() => {
                                             </svg>
                                             Add to Cart
                                         </button>
+
+                                        
+  
                                     </div>
                                 </div>
 

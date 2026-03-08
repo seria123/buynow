@@ -5,6 +5,9 @@ namespace App\Models;
 use App\Notifications\ResetPasswordNotification;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use App\Models\Sales\Cart;
+
+
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,6 +23,15 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia, Filamen
     use HasFactory, Notifiable, HasUuids, HasRoles, InteractsWithMedia;
 
     /**
+     * The attributes that are always appended to the array.
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'avatar',
+    ];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
@@ -31,7 +43,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia, Filamen
         'username',
         'google_id',
         'facebook_id',
-        'phone_number',
+        'phone',
         'avatar',
     ];
 
@@ -85,7 +97,10 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia, Filamen
         $media = $this->getFirstMedia('avatar');
         
         if ($media) {
-            return $media->getUrl();
+            // Add cache-busting query parameter using media's updated_at
+            $url = $media->getUrl();
+            $version = $media->updated_at->timestamp;
+            return $url . '?v=' . $version;
         }
 
         // Fallback to ui-avatars.com API when no avatar exists
@@ -108,5 +123,16 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia, Filamen
         return $this->hasAnyRole(['Admin', 'Super Admin', 'Developer']);
     }
 
-    
+    public function orders()
+{
+    return $this->hasMany(\App\Models\Sales\Order::class, 'user_id', 'id');
+}
+public function cartItems()
+{
+    return $this->hasMany(Cart::class, 'user_id', 'id')->with('product');
+}
+public function wishlist()
+{
+    return $this->hasMany(Wishlist::class, 'user_id', 'id');
+}
 }

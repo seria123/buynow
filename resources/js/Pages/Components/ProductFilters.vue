@@ -247,7 +247,7 @@ const previewProducts = (category, limit = 3) => {
                 Filters
             </h2>
             <button type="button"
-                class="text-xs text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 font-semibold transition-colors"
+                class="text-xs text-yellow-400 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 font-semibold transition-colors"
                 @click="clearFilters">
                 Clear all
             </button>
@@ -265,18 +265,18 @@ const previewProducts = (category, limit = 3) => {
             </div>
             <div class="space-y-2.5 pl-1">
                 <label
-                    class="flex items-center gap-3 cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors group">
+                    class="flex items-center gap-3 cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:text-yellow-400 dark:hover:text-yellow-400 transition-colors group">
                     <input type="checkbox"
-                        class="rounded border-gray-300 dark:border-zinc-600 text-yellow-600 focus:ring-yellow-500 dark:bg-zinc-800 shadow-sm"
+                        class="rounded border-gray-300 dark:border-zinc-600 text-yellow-400 focus:ring-yellow-500 dark:bg-zinc-800 shadow-sm"
                         :checked="localFilters.categories.length === 0"
                         @change="() => { localFilters.categories = []; }" />
                     <span class="font-medium group-hover:translate-x-0.5 transition-transform">All categories</span>
                 </label>
                 <label v-for="item in flattenedCategories" :key="item.category.id"
-                    class="flex items-center gap-3 cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors group"
+                    class="flex items-center gap-3 cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:text-yellow-400 dark:hover:text-yellow-400 transition-colors group"
                     :style="{ marginLeft: `${item.depth * 16}px` }">
                     <input type="checkbox"
-                        class="rounded border-gray-300 dark:border-zinc-600 text-yellow-600 focus:ring-yellow-500 dark:bg-zinc-800 shadow-sm"
+                        class="rounded border-gray-300 dark:border-zinc-600 text-yellow-400 focus:ring-yellow-500 dark:bg-zinc-800 shadow-sm"
                         :checked="isCategorySelected(item.category.slug)"
                         @change="toggleCategoryFilter(item.category.slug)" />
                     <span class="flex items-center gap-2 group-hover:translate-x-0.5 transition-transform">
@@ -314,7 +314,7 @@ const previewProducts = (category, limit = 3) => {
                             </p>
                         </div>
                         <button type="button"
-                            class="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 focus:outline-none transition-colors"
+                            class="text-xs font-semibold text-yellow-400 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 focus:outline-none transition-colors"
                             @click="setCategoryFilter(child.slug, true)">
                             View →
                         </button>
@@ -344,7 +344,7 @@ const previewProducts = (category, limit = 3) => {
                                     }}</p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">{{ product.variants?.length ?? 0 }}
                                     variant(s)</p>
-                                <div class="text-xs font-bold text-yellow-600 dark:text-yellow-400">
+                                <div class="text-xs font-bold text-yellow-400 dark:text-yellow-400">
                                     {{ formatAmount(product.price) }} KES
                                 </div>
                             </div>
@@ -402,9 +402,9 @@ const previewProducts = (category, limit = 3) => {
             </div>
             <div class="space-y-2.5 pl-1">
                 <label v-for="brand in brands" :key="brand.id"
-                    class="flex items-center gap-3 cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors group">
+                    class="flex items-center gap-3 cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:text-yellow-400 dark:hover:text-yellow-400 transition-colors group">
                     <input type="checkbox"
-                        class="rounded border-gray-300 dark:border-zinc-600 text-yellow-600 focus:ring-yellow-500 dark:bg-zinc-800 shadow-sm"
+                        class="rounded border-gray-300 dark:border-zinc-600 text-yellow-400 focus:ring-yellow-500 dark:bg-zinc-800 shadow-sm"
                         :checked="localFilters.brands.includes(brand.id)" @change="toggleBrand(brand.id)" />
                     <span class="font-medium group-hover:translate-x-0.5 transition-transform">{{ brand.name }}</span>
                 </label>
@@ -429,7 +429,7 @@ const previewProducts = (category, limit = 3) => {
                         <h3 class="text-sm font-bold text-gray-900 dark:text-white">{{ attribute.name }}</h3>
                         <button v-if="localFilters.attributes[attribute.id]?.length"
                             @click="clearAttributeFilter(attribute.id)"
-                            class="text-xs text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 font-semibold transition-colors">
+                            class="text-xs text-yellow-400 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 font-semibold transition-colors">
                             Clear
                         </button>
                     </div>
@@ -438,9 +438,9 @@ const previewProducts = (category, limit = 3) => {
                             class="flex items-center cursor-pointer group">
                             <input type="checkbox" :checked="isAttributeValueSelected(attribute.id, value)"
                                 @change="toggleAttributeValue(attribute.id, value)"
-                                class="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 dark:border-zinc-600 rounded cursor-pointer dark:bg-zinc-800 shadow-sm" />
+                                class="h-4 w-4 text-yellow-400 focus:ring-yellow-500 border-gray-300 dark:border-zinc-600 rounded cursor-pointer dark:bg-zinc-800 shadow-sm" />
                             <span
-                                class="ml-3 text-sm text-gray-700 dark:text-gray-300 group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-all group-hover:translate-x-0.5"
+                                class="ml-3 text-sm text-gray-700 dark:text-gray-300 group-hover:text-yellow-400 dark:group-hover:text-yellow-400 transition-all group-hover:translate-x-0.5"
                                 :class="{ 'font-bold text-yellow-700 dark:text-yellow-400': isAttributeValueSelected(attribute.id, value) }">
                                 {{ value }}
                             </span>
@@ -455,7 +455,7 @@ const previewProducts = (category, limit = 3) => {
         </div>
 
         <button type="button"
-            class="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold py-3 shadow-lg shadow-yellow-500/30 hover:shadow-yellow-600/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            class="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-700 text-white font-bold py-3 shadow-lg shadow-yellow-500/30 hover:shadow-yellow-400/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
             @click="applyFilters">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
