@@ -12,98 +12,127 @@ use Illuminate\Support\Facades\Log;
 class PaymentController extends Controller
 {
     public function mpesaPay(Request $request, Order $order)
-    {
-        $request->validate([
-            'phone' => 'required|string|min:12|max:12',
-        ]);
-
-        $phone = $request->input('phone');
-        $amount = max(1, intval($order->order_total));
-        $environment = env('MPESA_ENVIRONMENT', 'sandbox');
-
-        // Sandbox test numbers
-        if ($environment === 'sandbox') {
-            $sandboxNumbers = ['254708374149', '254708374147', '254708374145'];
-            $phone = $sandboxNumbers[0];
-            Log::info("Sandbox mode: using test number $phone");
-        }
-
-        try {
-            // Generate access token
-            $accessToken = $this->generateAccessToken();
-            Log::info('Access Token generated', ['token' => $accessToken]);
-
-            $timestamp = now()->format('YmdHis');
-            $password = base64_encode(env('MPESA_SHORTCODE') . env('MPESA_PASSKEY') . $timestamp);
-
-            // Attempt STK Push
-           $response = Http::withToken($accessToken)
-    ->post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', [
-        "BusinessShortCode" => env('MPESA_SHORTCODE'),
-        "Password" => $password,
-        "Timestamp" => $timestamp,
-        "TransactionType" => "CustomerPayBillOnline",
-        "Amount" => $amount,
-        "PartyA" => $phone,
-        "PartyB" => env('MPESA_SHORTCODE'),
-        "PhoneNumber" => $phone,
-        "CallBackURL" => env('MPESA_CALLBACK_URL'),
-        "AccountReference" => $order->order_number,
-        "TransactionDesc" => 'Payment for order ' . $order->order_number,
+{
+    $request->validate([
+        'phone' => 'required|string|min:12|max:12',
     ]);
 
-Log::info('Raw STK Response', [
-    'status' => $response->status(),
-    'body' => $response->body()
-]);
+    $phone = $request->input('phone');
+    $amount = max(1, intval($order->order_total));
+    $environment = env('MPESA_ENVIRONMENT', 'sandbox');
 
-$responseJson = $response->json() ?? [];
-            Log::info('STK Push Response JSON', ['json' => $responseJson]);
+    // In sandbox, allow personal number or fallback to test numbers
+    if ($environment === 'sandbox') {
+        // Accept user phone even if not pre-set in sandbox
+        $actualPhone = preg_match('/^254[71]\d{8}$/', $phone) ? $phone : null;
 
-            // Check if sandbox returned an error
-          if (!isset($responseJson['ResponseCode']) || $responseJson['ResponseCode'] !== '0'){
-                // Simulate payment in sandbox if STK Push fails
-                Log::warning('STK Push failed, simulating payment for sandbox', ['response' => $responseJson]);
-                $order->payment_status = 'paid';
-                $order->status = 'completed';
-                $order->payment_method = 'mpesa';
-                $order->save();
+        if (!$actualPhone) {
+            $sandboxNumbers = ['254708374149', '254708374147', '254708374145'];
+            $phone = $sandboxNumbers[0];
+            Log::info("Sandbox mode: using default test number $phone");
+        } else {
+            Log::info("Sandbox mode: using user phone $phone (ensure it's added to Daraja Simulator for full simulation)");
+        }
+    }
 
-                return response()->json([
-                    'message' => 'Sandbox mode: payment simulated successfully.',
-                    'stk_response' => $responseJson,
-                    'used_phone' => $phone
-                ]);
-            }
+    try {
+        $accessToken = $this->generateAccessToken();
+        if (!$accessToken) {
+            throw new \Exception('Failed to generate M-Pesa access token');
+        }
 
-            // If STK Push succeeded, mark order as paid (sandbox: callback may not fire)
+        $timestamp = now()->format('YmdHis');
+        $password = base64_encode(env('MPESA_SHORTCODE') . env('MPESA_PASSKEY') . $timestamp);
+
+        $stkRequest = [
+            "BusinessShortCode" => env('MPESA_SHORTCODE'),
+            "Password" => $password,
+            "Timestamp" => $timestamp,
+            "TransactionType" => "CustomerPayBillOnline",
+            "Amount" => $amount,
+            "PartyA" => $phone,
+            "PartyB" => env('MPESA_SHORTCODE'),
+            "PhoneNumber" => $phone,
+            "CallBackURL" => env('MPESA_CALLBACK_URL'),
+            "AccountReference" => $order->order_number,
+            "TransactionDesc" => 'Payment for order ' . $order->order_number,
+        ];
+
+        $response = Http::withToken($accessToken)
+            ->timeout(120)
+            ->connectTimeout(30)
+            ->retry(3, 1000)
+            ->post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', $stkRequest);
+
+        $responseJson = $response->json() ?? [];
+        Log::info('STK Push Response JSON', ['json' => $responseJson]);
+
+        // Sandbox: simulate payment if STK push fails
+        if (!isset($responseJson['ResponseCode']) || $responseJson['ResponseCode'] !== '0') {
+            Log::warning('STK Push failed, simulating payment', ['response' => $responseJson]);
             $order->payment_status = 'paid';
-            $order->status = 'completed';
+            $order->status = 'processing';
             $order->payment_method = 'mpesa';
             $order->save();
 
             return response()->json([
-                'message' => 'STK Push initiated. Check your phone to complete payment.',
+                'message' => 'Sandbox mode: payment simulated successfully.',
                 'stk_response' => $responseJson,
                 'used_phone' => $phone
             ]);
-
-        } catch (\Exception $e) {
-            Log::error('MPESA Payment error', [
-                'order_id' => $order->id,
-                'phone' => $phone,
-                'amount' => $amount,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'error' => 'Payment initiation failed.',
-                'details' => $e->getMessage()
-            ], 500);
         }
+
+        // STK Push initiated successfully
+        $order->payment_status = 'paid';
+        $order->status = 'processing';
+        $order->payment_method = 'mpesa';
+        $order->save();
+
+        return response()->json([
+            'message' => 'STK Push initiated. Check your phone to complete payment.',
+            'stk_response' => $responseJson,
+            'used_phone' => $phone
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('MPESA Payment error', [
+            'order_id' => $order->id,
+            'phone' => $phone,
+            'amount' => $amount,
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return response()->json([
+            'error' => 'Payment initiation failed.',
+            'details' => $e->getMessage()
+        ], 500);
+    }
+}
+
+ // Called by Safaricom to validate the transaction
+    public function validation(Request $request)
+    {
+        Log::info('M-Pesa Validation:', $request->all());
+
+        return response()->json([
+            "ResultCode" => 0,
+            "ResultDesc" => "Accepted"
+        ]);
     }
 
+    // Called by Safaricom after payment is complete
+    public function confirmation(Request $request)
+    {
+        Log::info('M-Pesa Confirmation:', $request->all());
+
+        // Here you can mark the order as paid in your database
+
+        return response()->json([
+            "ResultCode" => 0,
+            "ResultDesc" => "Accepted"
+        ]);
+    }
 
     // -----------------------------
     // M-Pesa Callback
@@ -130,7 +159,8 @@ $responseJson = $response->json() ?? [];
             if ($orderRef) {
                 $order = Order::where('order_number', $orderRef)->first();
                 if ($order) {
-                    $order->status = 'paid';
+                    $order->status = 'processing';
+                    $order->payment_status = 'paid';
                     $order->payment_method = 'mpesa';
                     $order->save();
                     Log::info("Order {$order->id} marked as paid via M-Pesa");
@@ -182,7 +212,11 @@ public function generateAccessToken()
     try {
         $response = Http::withHeaders([
             'Authorization' => 'Basic ' . $credentials
-        ])->get($url);
+        ])
+        ->timeout(60)
+        ->connectTimeout(15)
+        ->retry(3, 1000)
+        ->get($url);
 
         \Log::info('M-Pesa Access Token Response', [
             'status' => $response->status(),

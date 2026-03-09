@@ -36,7 +36,7 @@ class WishlistController extends Controller
         ]);
     }
 
-    public function add(Product $product)
+    public function add(Request $request, Product $product)
     {
         $user = auth()->user();
 
@@ -45,8 +45,7 @@ class WishlistController extends Controller
             'product_id' => $product->id,
         ]);
 
-        return redirect()->route('wishlist.index')
-            ->with('success', 'Product added to wishlist');
+        return response()->json(['message' => 'Product added to wishlist', 'success' => true]);
     }
 
     public function remove(Product $product)

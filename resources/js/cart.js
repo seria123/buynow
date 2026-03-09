@@ -85,9 +85,12 @@ const loadCart = async () => {
 // -----------------------------
 const addToCart = async (productId, quantity = 1) => {
   const csrf = await getCsrfToken();
-  if (!csrf) return console.error('[Cart] No CSRF token');
+  if (!csrf) {
+    console.error('[Cart] No CSRF token');
+    throw new Error('No CSRF token');
+  }
 
-  await debugFetch('/cart/add', {
+  const res = await debugFetch('/cart/add', {
     method: 'POST',
     credentials: 'same-origin',
     headers: {
@@ -98,6 +101,12 @@ const addToCart = async (productId, quantity = 1) => {
     },
     body: JSON.stringify({ product_id: productId, quantity }),
   });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Failed to add to cart' }));
+    console.error('[Cart] Add to cart failed:', error);
+    throw new Error(error.message || 'Failed to add to cart');
+  }
 
   await loadCart();
 };

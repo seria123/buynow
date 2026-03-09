@@ -783,7 +783,7 @@ const handleLogout = () => {
                                                     <div v-if="node.category.products?.length"
                                                         class="grid grid-cols-4 gap-3">
                                                         <Link v-for="product in node.category.products.slice(0, 4)"
-                                                            :key="product.id" :href="`/products/${product.slug}`"
+                                                            :key="product.id" :href="`/product/${product.slug}`"
                                                             class="group/item border border-gray-200 dark:border-zinc-700 rounded-lg p-3 hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-lg transition-all duration-200 bg-white dark:bg-zinc-800/30">
                                                         <div v-if="product.thumbnail_url"
                                                             class="aspect-square mb-2 rounded-lg overflow-hidden bg-gray-100 dark:bg-zinc-800">

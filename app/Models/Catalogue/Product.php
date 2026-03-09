@@ -146,7 +146,7 @@ class Product extends Model implements AuditableContract, HasMedia
     }
 
     // Final fallback placeholder
-    return $url ?: asset('images/placeholder.png');
+    return $url ?: asset('images/placeholder.svg');
 }
     /**
      * Check if the product has a thumbnail.
@@ -202,6 +202,14 @@ class Product extends Model implements AuditableContract, HasMedia
             $admin->notify(new ProductApprovalRequestNotification($this, $this->creator));
         }
     }
+    /**
+     * Get the route key for the model.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     public function wishlistedBy()
 {
     return $this->belongsToMany(\App\Models\User::class, 'user_product_wishlist', 'product_id', 'user_id');

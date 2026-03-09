@@ -17,8 +17,14 @@ use App\Models\Catalogue\Category;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 
 Route::get('/', [PagesController::class, 'index']);
+
+// API route to check user authentication status
+Route::get('/api/user', function (Request $request) {
+    return $request->user() ? response()->json($request->user()) : response()->json(['message' => 'Not authenticated'], 401);
+});
 
 Route::get('/products', [ProductsController::class, 'index'])->name('products.index');
 
@@ -109,6 +115,13 @@ Route::prefix('profile/orders')->middleware(['auth'])->group(function () {
     Route::post('/{order}/return-request', [OrderController::class, 'requestReturn'])->name('orders.return.request');
 });
 
+// Direct /orders routes (alternative access)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/orders/{order}', [OrderController::class, 'show']);
+    Route::get('/orders/{order}/status', [OrderController::class, 'status']);
+    Route::delete('/orders/{order}', [OrderController::class, 'destroy']);
+});
+
 // Track order routes
 Route::middleware(['auth'])->group(function () {
     Route::get('/orders/track', [OrderController::class, 'trackForm'])->name('orders.track.form');
@@ -120,8 +133,8 @@ Route::post('/cart/checkout', [OrderController::class, 'checkout'])->name('check
 // Wishlist routes
 Route::middleware('auth')->group(function () {
     Route::get('/profile/wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
-    Route::post('/profile/wishlist/{product}', [WishlistController::class, 'add'])->name('wishlist.add');
-    Route::delete('/profile/wishlist/{product}', [WishlistController::class, 'remove'])->name('wishlist.remove');
+    Route::post('/profile/wishlist/{product:id}', [WishlistController::class, 'add'])->name('wishlist.add');
+    Route::delete('/profile/wishlist/{product:id}', [WishlistController::class, 'remove'])->name('wishlist.remove');
     Route::delete('/profile/wishlist-old', [WishlistController::class, 'deleteOld'])->name('wishlist.deleteOld');
 });
 
@@ -140,5 +153,7 @@ Route::post('/mpesa/callback', [PaymentController::class, 'mpesaCallback']);
 Route::middleware(['auth'])->group(function () {
     Route::get('/support/messages', [SupportController::class, 'fetchMessages']);
     Route::post('/support/message', [SupportController::class, 'store']);
-});
+});use App\Http\Controllers\Pages\MpesaController;
 
+Route::post('/m-pesa/validation', [PaymentController::class, 'validation']);
+Route::post('/m-pesa/confirmation', [PaymentController::class, 'confirmation']);

@@ -52,11 +52,20 @@ class CartController extends Controller
     public function add(Request $request)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1',
         ]);
 
-        $product = Product::with('category')->findOrFail($request->product_id);
+        // Accept either product_id (UUID) or product_slug
+        $productId = $request->input('product_id');
+        $productSlug = $request->input('product_slug');
+        
+        if ($productId) {
+            $product = Product::with('category')->findOrFail($productId);
+        } elseif ($productSlug) {
+            $product = Product::with('category')->where('slug', $productSlug)->firstOrFail();
+        } else {
+            return response()->json(['message' => 'Product ID or slug is required'], 422);
+        }
 
         if (Auth::check()) {
             $this->addToDatabaseCart(Auth::id(), $product, $request->quantity);

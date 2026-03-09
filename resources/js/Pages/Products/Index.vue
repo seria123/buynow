@@ -278,7 +278,7 @@ function goToWishlist(product) {
     >
         <!-- Safe product thumbnail -->
       <img
-    :src="product.thumbnail_url || '/images/placeholder.png'"
+    :src="product.thumbnail_url || '/images/placeholder.svg'"
     :alt="product.name"
     class="w-full h-full object-cover"
     
@@ -315,7 +315,7 @@ function goToWishlist(product) {
 
                                     <!-- Product Name -->
                                     <Link
-  :href="route('products.show', product.id)"
+  :href="route('products.show', product.slug)"
   class="text-lg font-bold text-gray-900 dark:text-white line-clamp-2 mb-3 group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors"
 >
   {{ product.name }}

@@ -221,7 +221,7 @@ async function requestReturn(order) {
                 class="flex justify-between border-b last:border-b-0 py-1 items-center"
               >
                 <img
-                  :src="item.product?.thumbnail_url || 'https://via.placeholder.com/100'"
+                  :src="item.product?.thumbnail_url || '/images/placeholder.svg'"
                   alt="Product Image"
                   class="w-20 h-20 object-cover rounded-md"
                 />

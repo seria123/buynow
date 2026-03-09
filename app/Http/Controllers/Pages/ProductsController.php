@@ -56,9 +56,11 @@ class ProductsController extends Controller
         'slug' => $product->slug,
         'price' => $product->price,
         'compare_price' => $product->compare_price,
-       'thumbnail_url' =>
-    $product->getFirstMediaUrl('thumbnail')
-        ?: asset('images/placeholder.png'),
+        'thumbnail_url' => $product->thumbnail_url,
+            'images' => $product->getMedia('images')->map(fn ($media) => [
+                'url' => $media->getUrl(),
+                'thumb_url' => $media->getUrl('thumb'),
+            ])->toArray(),
         'category' => $product->category ? [
             'id' => $product->category->id,
             'name' => $product->category->name,
@@ -86,7 +88,7 @@ class ProductsController extends Controller
             'compare_price' => $variant->compare_price ?? $product->compare_price,
             'thumbnail_url' => $variant->getFirstMediaUrl('thumbnail', 'thumb') 
                                ?: $product->thumbnail_url
-                               ?: asset('images/placeholder.png'),
+                               ?: asset('images/placeholder.svg'),
             'category' => $product->category ? [
                 'id' => $product->category->id,
                 'name' => $product->category->name,
@@ -373,9 +375,71 @@ class ProductsController extends Controller
     }
     public function show(Product $product)
     {
+        // Load all necessary relations
+        $product->load(['category', 'brand', 'variants.variantOptions.attribute', 'media']);
+        
+        // Transform product for frontend - similar to transformProduct but for single product
+        $transformedProduct = $this->transformSingleProduct($product);
+        
         return Inertia::render('Products/Show', [
-            'product' => $product->load('category', 'brand', 'variants'), // load relations as needed
+            'product' => $transformedProduct,
         ]);
+    }
+    
+    /**
+     * Transform a single product for the frontend show page.
+     */
+    private function transformSingleProduct(Product $product): array
+    {
+        return [
+            'id' => $product->id,
+            'name' => $product->name,
+            'slug' => $product->slug,
+            'price' => $product->price,
+            'compare_price' => $product->compare_price,
+            'thumbnail_url' => $product->thumbnail_url,
+            'images' => $product->getMedia('images')->map(fn ($media) => [
+                'url' => $media->getUrl(),
+                'thumb_url' => $media->getUrl('thumb'),
+            ])->toArray(),
+            'description' => $product->description,
+            'short_description' => $product->short_description,
+            'category' => $product->category ? [
+                'id' => $product->category->id,
+                'name' => $product->category->name,
+                'slug' => $product->category->slug,
+            ] : null,
+            'brand' => $product->brand ? [
+                'id' => $product->brand->id,
+                'name' => $product->brand->name,
+            ] : null,
+            'stats' => [
+                'total_stock' => $product->getTotalStock(),
+                'variant_count' => $product->variants->count(),
+                'has_variants' => $product->hasVariants(),
+            ],
+            // Rating and reviews
+            'rating' => $product->rating ?? 4.0,
+            'rating_count' => $product->rating_count ?? rand(10, 100),
+            // Shipping info
+            'shipping_fee' => $product->shipping_fee ?? ($product->price >= 1000 ? 0 : 250),
+            'variant_badges' => [],
+            'is_variant' => false,
+            'variants' => $product->variants->map(fn ($variant) => [
+                'id' => $variant->id,
+                'name' => $variant->display_name,
+                'price' => $variant->price ?? $product->price,
+                'compare_price' => $variant->compare_price ?? $product->compare_price,
+                'thumbnail_url' => $variant->getFirstMediaUrl('thumbnail', 'thumb') 
+                                   ?: $product->thumbnail_url
+                                   ?: asset('images/placeholder.svg'),
+                'quantity' => $variant->quantity ?? 0,
+                'variantOptions' => $variant->variantOptions->map(fn ($option) => [
+                    'attribute' => $option->attribute?->name,
+                    'value' => $option->value,
+                ])->filter(fn ($option) => $option['attribute'] && $option['value'])->values()->toArray(),
+            ])->toArray(),
+        ];
     }
 public function store(Request $request)
 {

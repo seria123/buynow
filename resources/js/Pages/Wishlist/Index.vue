@@ -97,7 +97,7 @@ function formatDate(iso) {
               <p class="text-yellow-600 font-bold mt-1">KES {{ product.price }}</p>
               <p class="text-xs text-gray-400 mt-1">Added {{ formatDate(product.added_at) }}</p>
 
-              <a :href="`/products/${product.id}`"
+              <a :href="`/product/${product.slug}`"
                  class="mt-3 block w-full text-center bg-yellow-400 hover:bg-yellow-500 text-black font-semibold text-sm py-2 rounded-xl transition">
                 View Product
               </a>

@@ -121,7 +121,7 @@ const grandTotal = computed(() => itemsTotal.value + taxAmount.value + shippingF
                class="flex justify-between items-center border-b last:border-b-0 pb-2">
             <div class="flex items-center gap-3">
               <img
-                :src="item.product?.thumbnail_url || 'https://via.placeholder.com/100'"
+                :src="item.product?.thumbnail_url || '/images/placeholder.svg'"
                 alt="Product Image"
                 class="w-20 h-20 object-cover rounded-md"
               />

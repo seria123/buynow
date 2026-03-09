@@ -57,7 +57,7 @@ const getDiscountPercentage = (product) => {
 };
 
 const getProductImage = (product) => {
-    return product.thumbnail_url || '/images/placeholder.png';
+    return product.thumbnail_url || '/images/placeholder.svg';
 }; // <-- Added missing closing brace
 </script>
 
@@ -105,7 +105,7 @@ const getProductImage = (product) => {
                     <a 
                         v-for="product in products" 
                         :key="product.id" 
-                        :href="`/products/${product.slug}`"
+                        :href="`/product/${product.slug}`"
                         class="flex-shrink-0 w-[160px] group"
                     >
                         <div class="bg-white dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700 overflow-hidden hover:shadow-lg transition-shadow">
