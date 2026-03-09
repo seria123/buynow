@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import { Head, router } from '@inertiajs/vue3';
 import MainLayout from '../Layouts/MainLayout.vue';
 import { useCart } from '../../cart.js';
@@ -9,6 +10,8 @@ import 'vue3-toastify/dist/index.css';
 const props = defineProps({
   product: Object
 });
+
+const page = usePage();
 
 const isWishlistLoading = ref(false);
 const quantity = ref(1);
@@ -48,7 +51,7 @@ const addToWishlist = () => {
     return;
   }
   
-  const productId = props.product?.id;
+  const productId = page.props.product?.id || props.product?.id;
   if (!productId) {
     alert('Product not found');
     return;
