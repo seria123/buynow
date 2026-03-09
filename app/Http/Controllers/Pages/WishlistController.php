@@ -45,7 +45,7 @@ class WishlistController extends Controller
             'product_id' => $product->id,
         ]);
 
-        return response()->json(['message' => 'Product added to wishlist', 'success' => true]);
+        return redirect()->route('wishlist.index')->with('success', 'Product added to wishlist!');
     }
 
     public function remove(Product $product)
