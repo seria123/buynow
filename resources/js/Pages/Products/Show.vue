@@ -38,8 +38,8 @@ const discountPercentage = computed(() => {
   return 0;
 });
 
-// Add to wishlist handler - just redirect to wishlist page
-const addToWishlist = () => {
+// Add to wishlist handler
+const addToWishlist = async () => {
   if (!isLoggedIn.value) {
     router.get('/login', {}, { 
       preserveScroll: true,
@@ -47,8 +47,29 @@ const addToWishlist = () => {
     });
     return;
   }
-  // Redirect to wishlist page
-  router.visit('/profile/wishlist');
+  
+  isWishlistLoading.value = true;
+  try {
+    const response = await fetch(`/profile/wishlist/${props.product.id}`, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      alert('Product added to wishlist!');
+    } else {
+      alert(data.message || 'Failed to add to wishlist');
+    }
+  } catch (error) {
+    console.error('Wishlist error:', error);
+    alert('Error adding to wishlist');
+  } finally {
+    isWishlistLoading.value = false;
+  }
 };
 
 // Add to cart handler
