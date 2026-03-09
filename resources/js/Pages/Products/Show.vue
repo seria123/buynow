@@ -40,6 +40,9 @@ const discountPercentage = computed(() => {
 
 // Add to wishlist handler
 const addToWishlist = async () => {
+  console.log('Product ID:', props.product?.id);
+  console.log('Product:', props.product);
+  
   if (!isLoggedIn.value) {
     router.get('/login', {}, { 
       preserveScroll: true,
@@ -48,9 +51,15 @@ const addToWishlist = async () => {
     return;
   }
   
+  const productId = props.product?.id;
+  if (!productId) {
+    alert('Product not found');
+    return;
+  }
+  
   isWishlistLoading.value = true;
   try {
-    const response = await fetch(`/profile/wishlist/${props.product.id}`, {
+    const response = await fetch(`/profile/wishlist/${productId}`, {
       method: 'POST',
       headers: {
         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
@@ -60,7 +69,8 @@ const addToWishlist = async () => {
     
     const data = await response.json();
     if (data.success) {
-      alert('Product added to wishlist!');
+      // Redirect to wishlist page
+      router.visit('/profile/wishlist');
     } else {
       alert(data.message || 'Failed to add to wishlist');
     }
