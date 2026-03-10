@@ -48,6 +48,25 @@ class WishlistController extends Controller
         return redirect()->route('wishlist.index')->with('success', 'Product added to wishlist!');
     }
 
+    public function addBySlug(Request $request, string $slug)
+    {
+        $user = auth()->user();
+        
+        // Find product by slug
+        $product = Product::where('slug', $slug)->first();
+        
+        if (!$product) {
+            return redirect()->back()->with('error', 'Product not found!');
+        }
+
+        \App\Models\Sales\Wishlist::firstOrCreate([
+            'user_id' => $user->id,
+            'product_id' => $product->id,
+        ]);
+
+        return redirect()->route('wishlist.index')->with('success', 'Product added to wishlist!');
+    }
+
     public function remove(Product $product)
     {
         $user = Auth::user();

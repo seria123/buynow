@@ -40,8 +40,8 @@ class OrderController extends Controller
     // Show a single order
     // -----------------------------
  public function show(Order $order)
-{
-  $order->load('orderItems.product');
+ {
+   $order->load('orderItems.product');
 
     $itemsTotal = $order->orderItems->sum(function ($item) {
         return (float) $item->subtotal;
@@ -68,7 +68,7 @@ class OrderController extends Controller
     // -----------------------------
     // Checkout the cart
   public function checkout(Request $request)
-{
+  {
     $user = Auth::user();
     $cartItems = $user->cartItems; // assumes User->cartItems relationship
 
@@ -121,17 +121,22 @@ class OrderController extends Controller
     // Pay an order
     // -----------------------------
     public function pay(Request $request, Order $order)
-{
-    if ($order->payment_status === 'paid') {
-        return response()->json(['message' => 'Already paid']);
+    {
+        if ($order->payment_status === 'paid') {
+            return response()->json(['message' => 'Already paid']);
+        }
+
+        // Validate phone number
+        $request->validate([
+            'phone' => 'required|string|min:10|max:12',
+        ]);
+
+        // Call Mpesa STK Push API via PaymentController
+        $paymentController = new PaymentController();
+        $mpesaResponse = $paymentController->mpesaPay($request, $order);
+
+        return $mpesaResponse;
     }
-
-    // Call Mpesa STK Push API here
-
-    return response()->json([
-        'message' => 'Mpesa prompt sent. Please check your phone.'
-    ]);
-}
 
 public function callback(Request $request)
 {
@@ -156,10 +161,10 @@ public function callback(Request $request)
     // Delete any order
     // -----------------------------
    public function destroy(Order $order)
-{
+   {
     $user = auth()->user();
 
-    // Make sure user owns this order
+    // Make sure user owns the order
     if ($order->user_id !== $user->id) {
         abort(403, 'Unauthorized');
     }
@@ -230,8 +235,7 @@ public function trackForm()
         $order->update(['return_status' => 'requested']);
 
         return response()->json([
-            'message' => 'Return request submitted successfully. Our team will review it within 24 hours.',
-            'return_status' => 'requested',
+            'return_status' => 'requested'
         ]);
     }
 }

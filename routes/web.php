@@ -133,8 +133,9 @@ Route::post('/cart/checkout', [OrderController::class, 'checkout'])->name('check
 // Wishlist routes
 Route::middleware('auth')->group(function () {
     Route::get('/profile/wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
-    Route::post('/profile/wishlist/{product:id}', [WishlistController::class, 'add'])->name('wishlist.add');
-    Route::delete('/profile/wishlist/{product:id}', [WishlistController::class, 'remove'])->name('wishlist.remove');
+    Route::post('/profile/wishlist/{product}', [WishlistController::class, 'add'])->name('wishlist.add');
+    Route::post('/profile/wishlist-by-slug/{slug}', [WishlistController::class, 'addBySlug'])->name('wishlist.addBySlug');
+    Route::delete('/profile/wishlist/{product}', [WishlistController::class, 'remove'])->name('wishlist.remove');
     Route::delete('/profile/wishlist-old', [WishlistController::class, 'deleteOld'])->name('wishlist.deleteOld');
 });
 

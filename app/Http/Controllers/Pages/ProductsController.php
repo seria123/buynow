@@ -378,8 +378,17 @@ class ProductsController extends Controller
         // Load all necessary relations
         $product->load(['category', 'brand', 'variants.variantOptions.attribute', 'media']);
         
+        // Check if product is in user's wishlist
+        $isInWishlist = false;
+        if (auth()->check()) {
+            $isInWishlist = \App\Models\Sales\Wishlist::where('user_id', auth()->id())
+                ->where('product_id', $product->id)
+                ->exists();
+        }
+        
         // Transform product for frontend - similar to transformProduct but for single product
         $transformedProduct = $this->transformSingleProduct($product);
+        $transformedProduct['is_in_wishlist'] = $isInWishlist;
         
         return Inertia::render('Products/Show', [
             'product' => $transformedProduct,
@@ -391,13 +400,24 @@ class ProductsController extends Controller
      */
     private function transformSingleProduct(Product $product): array
     {
+        // Get thumbnail from 'thumbnail' collection or fallback to first image from 'images' collection
+        $thumbnailUrl = $product->thumbnail_url;
+        
+        // If no thumbnail from 'thumbnail' collection, try getting first image from 'images' collection
+        if (!$thumbnailUrl || $thumbnailUrl === asset('images/placeholder.svg')) {
+            $firstImage = $product->getMedia('images')->first();
+            if ($firstImage) {
+                $thumbnailUrl = $firstImage->getUrl('thumb') ?: $firstImage->getUrl();
+            }
+        }
+        
         return [
             'id' => $product->id,
             'name' => $product->name,
             'slug' => $product->slug,
             'price' => $product->price,
             'compare_price' => $product->compare_price,
-            'thumbnail_url' => $product->thumbnail_url,
+            'thumbnail_url' => $thumbnailUrl,
             'images' => $product->getMedia('images')->map(fn ($media) => [
                 'url' => $media->getUrl(),
                 'thumb_url' => $media->getUrl('thumb'),
@@ -421,8 +441,11 @@ class ProductsController extends Controller
             // Rating and reviews
             'rating' => $product->rating ?? 4.0,
             'rating_count' => $product->rating_count ?? rand(10, 100),
-            // Shipping info
-            'shipping_fee' => $product->shipping_fee ?? ($product->price >= 1000 ? 0 : 250),
+            // Shipping info - calculate as percentage of product price
+            // 5% of price, minimum KSh 100, maximum KSh 500, free for orders >= KSh 1000
+            'shipping_fee' => $product->price >= 1000 
+                ? 0 
+                : min(max(round($product->price * 0.05), 100), 500),
             'variant_badges' => [],
             'is_variant' => false,
             'variants' => $product->variants->map(fn ($variant) => [

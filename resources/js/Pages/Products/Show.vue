@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, toRaw } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { Head, router } from '@inertiajs/vue3';
 import MainLayout from '../Layouts/MainLayout.vue';
@@ -13,10 +13,92 @@ const props = defineProps({
 
 const page = usePage();
 
+// Debug: Log props on mount
+onMounted(() => {
+  console.log('Show.vue - page.props on mount:', toRaw(page.props));
+  console.log('Show.vue - props.product on mount:', toRaw(props.product));
+});
+
 const isWishlistLoading = ref(false);
 const quantity = ref(1);
+const selectedImageIndex = ref(0);
 
 const { addToCart, checkAuthStatus, isLoggedIn } = useCart();
+
+// Try to get product from page.props using $page in a different way
+// In Inertia, the props are available via page.props but might need to access differently
+function findProductInPageProps() {
+  const raw = toRaw(page.props);
+  console.log('All page.props keys:', Object.keys(raw));
+  
+  // Specifically check page.props.product
+  console.log('page.props.product raw:', raw.product);
+  console.log('page.props.product id:', raw.product?.id);
+  console.log('page.props.product name:', raw.product?.name);
+  
+  // Look for any property that has id and name
+  for (const [key, value] of Object.entries(raw)) {
+    if (value && typeof value === 'object' && value.id && value.name) {
+      console.log('Found product in key:', key);
+      return value;
+    }
+  }
+  
+  return null;
+}
+
+// Get product data when needed (not computed to avoid early evaluation)
+function getProductData() {
+  console.log('getProductData - props.product:', toRaw(props.product));
+  console.log('getProductData - page.props.product:', toRaw(page.props.product));
+  
+  // First try props.product
+  if (props.product?.id) {
+    console.log('Using props.product');
+    return props.product;
+  }
+  
+  // Then try page.props.product
+  if (page.props.product?.id) {
+    console.log('Using page.props.product');
+    return page.props.product;
+  }
+  
+  // Try to find in page.props
+  console.log('Trying findProductInPageProps');
+  return findProductInPageProps();
+}
+
+// Computed product for script access (named differently to avoid conflict with prop)
+const productData = computed(() => getProductData());
+
+console.log('Show.vue - computed product:', toRaw(productData.value));
+
+// Get all available images for the product - use helper function
+const productImages = computed(() => {
+  const p = getProductData();
+  if (p?.images && p.images.length > 0) {
+    return p.images;
+  }
+  // If no images array, check thumbnail_url
+  if (p?.thumbnail_url) {
+    return [{ url: p.thumbnail_url, thumb_url: p.thumbnail_url }];
+  }
+  return [];
+});
+
+// Current main image (can be changed by clicking thumbnails)
+const mainImage = computed(() => {
+  if (productImages.value.length > 0) {
+    return productImages.value[selectedImageIndex.value]?.url || productImages.value[selectedImageIndex.value]?.thumb_url;
+  }
+  return null;
+});
+
+// Select image from gallery
+const selectImage = (index) => {
+  selectedImageIndex.value = index;
+};
 
 // Check auth status on mount
 onMounted(async () => {
@@ -35,13 +117,14 @@ const formatCurrency = (value) => {
 
 // Calculate discount percentage
 const discountPercentage = computed(() => {
-  if (props.product?.price && props.product?.compare_price) {
-    return Math.round(((props.product.price - props.product.compare_price) / props.product.price) * 100);
+  const p = getProductData();
+  if (p?.price && p?.compare_price) {
+    return Math.round(((p.price - p.compare_price) / p.price) * 100);
   }
   return 0;
 });
 
-// Add to wishlist handler
+// Add to wishlist handler - add to wishlist and redirect to wishlist page
 const addToWishlist = () => {
   if (!isLoggedIn.value) {
     router.get('/login', {}, { 
@@ -51,28 +134,45 @@ const addToWishlist = () => {
     return;
   }
   
-  const productId = page.props.product?.id || props.product?.id;
-  if (!productId) {
-    alert('Product not found');
-    return;
-  }
+  // Get product data
+  const p = getProductData();
+  const productId = p?.id;
+  const productSlug = p?.slug;
   
-  // Use Inertia form post for proper redirect
-  router.post(`/profile/wishlist/${productId}`, {}, {
-    onSuccess: () => {
-      router.visit('/profile/wishlist');
-    }
-  });
+  // Use ID if available, otherwise use slug
+  if (productId) {
+    router.post(`/profile/wishlist/${productId}`, {}, {
+      onSuccess: () => {
+        router.visit('/profile/wishlist');
+      },
+      onError: () => {
+        toast.error('Failed to add to wishlist', { position: 'bottom-left', autoClose: 3000 });
+      }
+    });
+  } else if (productSlug) {
+    // Use slug-based route
+    router.post(`/profile/wishlist-by-slug/${productSlug}`, {}, {
+      onSuccess: () => {
+        router.visit('/profile/wishlist');
+      },
+      onError: () => {
+        toast.error('Failed to add to wishlist', { position: 'bottom-left', autoClose: 3000 });
+      }
+    });
+  } else {
+    toast.error('Product not found', { position: 'bottom-left', autoClose: 3000 });
+  }
 };
 
 // Add to cart handler
 const handleAddToCart = async () => {
-  // Debug: log the entire product object
-  console.log('Product props:', JSON.stringify(props.product));
+  // Get product using helper function
+  const p = getProductData();
+  console.log('Product for cart:', toRaw(p));
   
   // Try different ways to get product ID or slug
-  let productId = props.product?.id;
-  let productSlug = props.product?.slug;
+  let productId = p?.id;
+  let productSlug = p?.slug;
   
   // If no ID, try slug from props
   if (!productId && productSlug) {
@@ -142,10 +242,11 @@ const goBack = () => router.get('/products', {}, { preserveScroll: true });
               -{{ discountPercentage }}%
             </div>
             
+            <!-- Main Product Image -->
             <img
-              v-if="product?.thumbnail_url"
-              :src="product.thumbnail_url"
-              :alt="product.name"
+              v-if="mainImage"
+              :src="mainImage"
+              :alt="product?.name"
               class="w-full h-[300px] md:h-[400px] lg:h-[500px] object-contain bg-white"
             />
             <div v-else class="w-full h-[300px] md:h-[400px] lg:h-[500px] bg-gray-100 flex items-center justify-center">
@@ -153,16 +254,18 @@ const goBack = () => router.get('/products', {}, { preserveScroll: true });
             </div>
           </div>
 
-          <!-- Product Gallery -->
-          <div v-if="product?.images && product.images.length > 0" class="mt-4">
+          <!-- Product Gallery / Thumbnails -->
+          <div v-if="productImages.length > 1" class="mt-4">
             <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Product Images</h3>
             <div class="flex gap-2 overflow-x-auto">
               <div 
-                v-for="(img, index) in product.images" 
+                v-for="(img, index) in productImages" 
                 :key="index"
-                class="w-20 h-20 flex-shrink-0 rounded-lg border border-gray-200 overflow-hidden cursor-pointer hover:border-yellow-400 transition-colors"
+                @click="selectImage(index)"
+                class="w-20 h-20 flex-shrink-0 rounded-lg border-2 overflow-hidden cursor-pointer hover:border-yellow-400 transition-colors"
+                :class="selectedImageIndex === index ? 'border-yellow-500' : 'border-gray-200'"
               >
-                <img :src="img.thumb_url || img.url" :alt="product.name" class="w-full h-full object-cover" />
+                <img :src="img.thumb_url || img.url" :alt="product?.name" class="w-full h-full object-cover" />
               </div>
             </div>
           </div>
@@ -294,11 +397,15 @@ const goBack = () => router.get('/products', {}, { preserveScroll: true });
             <!-- Wishlist -->
             <button
               @click="addToWishlist"
-              class="w-full py-3 px-6 border-2 border-yellow-400 text-yellow-600 font-bold rounded hover:bg-yellow-50 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2"
+              :disabled="isWishlistLoading"
+              class="w-full py-3 px-6 border-2 font-bold rounded transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              :class="isInWishlist 
+                ? 'border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20' 
+                : 'border-yellow-400 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-zinc-800'"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                fill="none"
+                :fill="isInWishlist ? 'currentColor' : 'none'"
                 viewBox="0 0 24 24"
                 stroke-width="1.5"
                 stroke="currentColor"
@@ -306,7 +413,9 @@ const goBack = () => router.get('/products', {}, { preserveScroll: true });
               >
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
               </svg>
-              {{ isLoggedIn ? 'ADD TO WISHLIST' : 'LOGIN TO ADD TO WISHLIST' }}
+              <template v-if="!isLoggedIn">LOGIN TO ADD TO WISHLIST</template>
+              <template v-else-if="isInWishlist">REMOVE FROM WISHLIST</template>
+              <template v-else>ADD TO WISHLIST</template>
             </button>
           </div>
 
