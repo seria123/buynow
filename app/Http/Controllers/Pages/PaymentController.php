@@ -28,7 +28,7 @@ class PaymentController extends Controller
         ]);
 
         $phone = $request->input('phone');
-        $amount = max(1, intval($order->order_total));
+        $amount = max(1, intval($order->total_amount));
         $environment = env('MPESA_ENVIRONMENT', 'sandbox');
         $baseUrl = $this->getMpesaBaseUrl();
 

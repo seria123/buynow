@@ -36,9 +36,17 @@ class WishlistController extends Controller
         ]);
     }
 
-    public function add(Request $request, Product $product)
+    public function add(Request $request)
     {
         $user = auth()->user();
+        
+        // Get product_id from request since route model binding uses slug
+        $productId = $request->route('product');
+        $product = Product::find($productId);
+        
+        if (!$product) {
+            return redirect()->back()->with('error', 'Product not found!');
+        }
 
         \App\Models\Sales\Wishlist::firstOrCreate([
             'user_id' => $user->id,
@@ -67,9 +75,17 @@ class WishlistController extends Controller
         return redirect()->route('wishlist.index')->with('success', 'Product added to wishlist!');
     }
 
-    public function remove(Product $product)
+    public function remove(Request $request)
     {
         $user = Auth::user();
+        
+        // Get product_id from request since route model binding uses slug
+        $productId = $request->route('product');
+        $product = Product::find($productId);
+        
+        if (!$product) {
+            return redirect()->back()->with('error', 'Product not found!');
+        }
 
         Wishlist::where('user_id', $user->id)
             ->where('product_id', $product->id)

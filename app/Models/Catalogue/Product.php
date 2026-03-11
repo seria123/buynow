@@ -218,4 +218,14 @@ public function store()
 {
     return $this->belongsTo(Store::class);
 }
+
+public function ratings()
+{
+    return $this->hasMany(ProductRating::class);
+}
+
+public function comments()
+{
+    return $this->hasMany(ProductComment::class);
+}
 }

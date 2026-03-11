@@ -6,6 +6,7 @@ import MainLayout from '../Layouts/MainLayout.vue';
 import { useCart } from '../../cart.js';
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
+import axios from 'axios';
 
 const props = defineProps({
   product: Object
@@ -23,7 +24,19 @@ const isWishlistLoading = ref(false);
 const quantity = ref(1);
 const selectedImageIndex = ref(0);
 
+// Rating state
+const isRatingSubmitting = ref(false);
+const selectedRating = ref(0);
+const ratingComment = ref('');
+const isCommentSubmitting = ref(false);
+const newComment = ref('');
+
 const { addToCart, checkAuthStatus, isLoggedIn } = useCart();
+
+// Also check auth status from page props (more reliable)
+const isUserLoggedIn = computed(() => {
+  return page.props.auth?.user || isLoggedIn.value;
+});
 
 // Try to get product from page.props using $page in a different way
 // In Inertia, the props are available via page.props but might need to access differently
@@ -218,6 +231,105 @@ const handleAddToCart = async () => {
 
 // Go back to product listing
 const goBack = () => router.get('/products', {}, { preserveScroll: true });
+
+// Submit rating
+const submitRating = async () => {
+  if (!isUserLoggedIn.value) {
+    router.get('/login', {}, { 
+      preserveScroll: true,
+      data: { redirect: window.location.href }
+    });
+    return;
+  }
+  
+  if (selectedRating.value < 1 || selectedRating.value > 5) {
+    toast.error('Please select a rating', { position: 'bottom-left', autoClose: 3000 });
+    return;
+  }
+  
+  isRatingSubmitting.value = true;
+  
+  try {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || 
+                 document.cookie.split('; ').find(c => c.startsWith('XSRF-TOKEN='))?.split('=')[1];
+    
+    const response = await axios.post(`/products/${props.product.id}/rating`, {
+      rating: selectedRating.value,
+      comment: ratingComment.value,
+    }, {
+      headers: {
+        'X-CSRF-TOKEN': csrf || '',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+    
+    toast.success('Rating submitted!', { position: 'bottom-left', autoClose: 2000 });
+    
+    // Refresh the page to show updated ratings
+    router.reload({ only: ['product'] });
+  } catch (error) {
+    console.error('Rating error:', error);
+    toast.error('Failed to submit rating', { position: 'bottom-left', autoClose: 3000 });
+  } finally {
+    isRatingSubmitting.value = false;
+  }
+};
+
+// Submit comment
+const submitComment = async () => {
+  if (!isUserLoggedIn.value) {
+    router.get('/login', {}, { 
+      preserveScroll: true,
+      data: { redirect: window.location.href }
+    });
+    return;
+  }
+  
+  if (!newComment.value.trim()) {
+    toast.error('Please enter a comment', { position: 'bottom-left', autoClose: 3000 });
+    return;
+  }
+  
+  isCommentSubmitting.value = true;
+  
+  try {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || 
+                 document.cookie.split('; ').find(c => c.startsWith('XSRF-TOKEN='))?.split('=')[1];
+    
+    const response = await axios.post(`/products/${props.product.id}/comment`, {
+      comment: newComment.value,
+    }, {
+      headers: {
+        'X-CSRF-TOKEN': csrf || '',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+    });
+    
+    toast.success('Comment added!', { position: 'bottom-left', autoClose: 2000 });
+    newComment.value = '';
+    
+    // Refresh the page to show updated comments
+    router.reload({ only: ['product'] });
+  } catch (error) {
+    console.error('Comment error:', error);
+    toast.error('Failed to add comment', { position: 'bottom-left', autoClose: 3000 });
+  } finally {
+    isCommentSubmitting.value = false;
+  }
+};
+
+// Format date
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-KE', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  });
+};
 </script>
 
 <template>
@@ -318,8 +430,8 @@ const goBack = () => router.get('/products', {}, { preserveScroll: true });
 
           <!-- Star Rating -->
           <div class="flex items-center gap-2">
-            <div class="flex items-center">
-              <svg v-for="i in 5" :key="i" class="w-5 h-5" :class="i <= (product?.rating || 4) ? 'text-yellow-400' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
+            <div class="flex items-center cursor-pointer" @click="selectedRating = selectedRating > 0 ? 0 : 5">
+              <svg v-for="i in 5" :key="i" class="w-5 h-5" :class="i <= (product?.rating || 0) ? 'text-yellow-400' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
             </div>
@@ -450,6 +562,122 @@ const goBack = () => router.get('/products', {}, { preserveScroll: true });
           <p class="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
             {{ product?.description ?? product?.short_description ?? 'No description available.' }}
           </p>
+        </div>
+      </div>
+
+      <!-- Rating Section -->
+      <div class="mt-8">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Rate this Product</h2>
+        <div class="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg p-6">
+          <!-- Current Rating Display -->
+          <div class="flex items-center gap-2 mb-4">
+            <div class="flex items-center">
+              <svg v-for="i in 5" :key="i" class="w-5 h-5" :class="i <= (product?.rating || 0) ? 'text-yellow-400' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            </div>
+            <span class="text-sm text-gray-500">({{ product?.rating_count || 0 }} reviews)</span>
+          </div>
+
+          <!-- Rating Form (only show if user is logged in) -->
+          <div v-if="isUserLoggedIn" class="space-y-4">
+            <p class="text-sm text-gray-600 dark:text-gray-400">Click to rate:</p>
+            <div class="flex items-center gap-1">
+              <button
+                v-for="star in 5"
+                :key="star"
+                @click="selectedRating = star"
+                class="p-1 transition-transform hover:scale-110"
+              >
+                <svg class="w-8 h-8" :class="star <= selectedRating ? 'text-yellow-400' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              </button>
+            </div>
+            <div v-if="selectedRating > 0">
+              <textarea
+                v-model="ratingComment"
+                rows="2"
+                placeholder="Add a comment (optional)"
+                class="w-full border border-gray-300 dark:border-zinc-600 rounded-lg px-4 py-2 text-sm bg-white dark:bg-zinc-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 outline-none"
+              ></textarea>
+              <button
+                @click="submitRating"
+                :disabled="isRatingSubmitting"
+                class="mt-2 py-2 px-4 bg-yellow-400 text-black font-bold rounded hover:bg-yellow-500 transition-colors disabled:opacity-50"
+              >
+                {{ isRatingSubmitting ? 'Submitting...' : 'Submit Rating' }}
+              </button>
+            </div>
+          </div>
+          <div v-else class="text-sm text-gray-500">
+            <a href="/login" class="text-yellow-600 hover:underline">Login</a> to rate this product
+          </div>
+
+          <!-- Existing Ratings -->
+          <div v-if="product?.ratings?.length > 0" class="mt-6 pt-6 border-t border-gray-200 dark:border-zinc-700">
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Customer Reviews</h3>
+            <div class="space-y-4">
+              <div v-for="rating in product.ratings" :key="rating.id" class="border-b border-gray-100 dark:border-zinc-700 pb-4 last:border-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <div class="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center text-xs font-bold text-black">
+                    {{ rating.user?.name?.charAt(0).toUpperCase() || 'U' }}
+                  </div>
+                  <span class="font-medium text-gray-900 dark:text-white">{{ rating.user?.name || 'Anonymous' }}</span>
+                  <span class="text-gray-400 text-sm">{{ formatDate(rating.created_at) }}</span>
+                </div>
+                <div class="flex items-center mb-1">
+                  <svg v-for="i in 5" :key="i" class="w-4 h-4" :class="i <= rating.rating ? 'text-yellow-400' : 'text-gray-300'" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                </div>
+                <p v-if="rating.comment" class="text-gray-600 dark:text-gray-400 text-sm">{{ rating.comment }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comment Section -->
+      <div class="mt-8">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Customer Comments</h2>
+        <div class="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg p-6">
+          <!-- Comment Form -->
+          <div v-if="isUserLoggedIn" class="mb-6">
+            <textarea
+              v-model="newComment"
+              rows="3"
+              placeholder="Write a comment about this product..."
+              class="w-full border border-gray-300 dark:border-zinc-600 rounded-lg px-4 py-2 text-sm bg-white dark:bg-zinc-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 outline-none"
+            ></textarea>
+            <button
+              @click="submitComment"
+              :disabled="isCommentSubmitting || !newComment.trim()"
+              class="mt-2 py-2 px-4 bg-yellow-400 text-black font-bold rounded hover:bg-yellow-500 transition-colors disabled:opacity-50"
+            >
+              {{ isCommentSubmitting ? 'Posting...' : 'Post Comment' }}
+            </button>
+          </div>
+          <div v-else class="mb-6 text-sm text-gray-500">
+            <a href="/login" class="text-yellow-600 hover:underline">Login</a> to post a comment
+          </div>
+
+          <!-- Existing Comments -->
+          <div v-if="product?.comments?.length > 0" class="space-y-4">
+            <div v-for="comment in product.comments" :key="comment.id" class="border-b border-gray-100 dark:border-zinc-700 pb-4 last:border-0">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center text-xs font-bold text-black">
+                  {{ comment.user?.name?.charAt(0).toUpperCase() || 'U' }}
+                </div>
+                <span class="font-medium text-gray-900 dark:text-white">{{ comment.user?.name || 'Anonymous' }}</span>
+                <span class="text-gray-400 text-sm">{{ formatDate(comment.created_at) }}</span>
+              </div>
+              <p class="text-gray-600 dark:text-gray-400 text-sm">{{ comment.comment }}</p>
+            </div>
+          </div>
+          <div v-else class="text-gray-500 text-sm text-center py-4">
+            No comments yet. Be the first to comment!
+          </div>
         </div>
       </div>
     </div>

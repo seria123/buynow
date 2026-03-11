@@ -12,7 +12,6 @@ use Illuminate\Support\Str;
 class OrderItem extends Model
 { use HasFactory, HasUuids;
 
-
     protected $table = 'order_items';
 
     // UUID settings

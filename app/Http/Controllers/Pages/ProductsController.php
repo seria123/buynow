@@ -10,12 +10,15 @@ use App\Models\Catalogue\Category;
 use App\Models\Catalogue\Product;
 use App\Models\Catalogue\ProductVariant;
 use App\Models\Catalogue\ProductAttributeValue;
+use App\Models\Catalogue\ProductRating;
+use App\Models\Catalogue\ProductComment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Facades\Auth;
 
 class ProductsController extends Controller
 {
@@ -373,8 +376,15 @@ class ProductsController extends Controller
             'attributes' => $filters['attributes'],
         ];
     }
-    public function show(Product $product)
+    public function show(string $slug)
     {
+        // Find product by slug since getRouteKeyName returns 'slug'
+        $product = Product::where('slug', $slug)->first();
+        
+        if (!$product) {
+            abort(404);
+        }
+        
         // Load all necessary relations
         $product->load(['category', 'brand', 'variants.variantOptions.attribute', 'media']);
         
@@ -386,9 +396,51 @@ class ProductsController extends Controller
                 ->exists();
         }
         
+        // Get product ratings
+        $ratings = $product->ratings()->with('user:id,name,avatar')->get();
+        $averageRating = $ratings->avg('rating') ?? 0;
+        $ratingCount = $ratings->count();
+        
+        // Get user's own rating if logged in
+        $userRating = null;
+        if (auth()->check()) {
+            $userRating = $product->ratings()->where('user_id', auth()->id())->first();
+        }
+        
+        // Get product comments
+        $comments = $product->comments()->with('user:id,name,avatar')->latest()->get();
+        
         // Transform product for frontend - similar to transformProduct but for single product
         $transformedProduct = $this->transformSingleProduct($product);
         $transformedProduct['is_in_wishlist'] = $isInWishlist;
+        $transformedProduct['rating'] = round($averageRating, 1);
+        $transformedProduct['rating_count'] = $ratingCount;
+        $transformedProduct['user_rating'] = $userRating ? [
+            'id' => $userRating->id,
+            'rating' => $userRating->rating,
+            'comment' => $userRating->comment,
+        ] : null;
+        $transformedProduct['ratings'] = $ratings->map(fn($r) => [
+            'id' => $r->id,
+            'rating' => $r->rating,
+            'comment' => $r->comment,
+            'user' => $r->user ? [
+                'id' => $r->user->id,
+                'name' => $r->user->name,
+                'avatar' => $r->user->avatar,
+            ] : null,
+            'created_at' => $r->created_at,
+        ])->toArray();
+        $transformedProduct['comments'] = $comments->map(fn($c) => [
+            'id' => $c->id,
+            'comment' => $c->comment,
+            'user' => $c->user ? [
+                'id' => $c->user->id,
+                'name' => $c->user->name,
+                'avatar' => $c->user->avatar,
+            ] : null,
+            'created_at' => $c->created_at,
+        ])->toArray();
         
         return Inertia::render('Products/Show', [
             'product' => $transformedProduct,
@@ -530,5 +582,88 @@ public function update(Request $request, Product $product)
 
     return redirect()->route('products.index')
                      ->with('success', 'Product updated successfully.');
+}
+
+/**
+ * Store a rating for a product.
+ */
+public function storeRating(Request $request, Product $product)
+{
+    $request->validate([
+        'rating' => 'required|integer|min:1|max:5',
+        'comment' => 'nullable|string|max:500',
+    ]);
+
+    // Check if user already rated this product
+    $existingRating = ProductRating::where('product_id', $product->id)
+        ->where('user_id', auth()->id())
+        ->first();
+
+    if ($existingRating) {
+        // Update existing rating
+        $existingRating->update([
+            'rating' => $request->rating,
+            'comment' => $request->comment,
+        ]);
+        
+        return response()->json([
+            'message' => 'Rating updated successfully',
+            'rating' => $existingRating,
+        ]);
+    }
+
+    // Create new rating
+    $rating = ProductRating::create([
+        'product_id' => $product->id,
+        'user_id' => auth()->id(),
+        'rating' => $request->rating,
+        'comment' => $request->comment,
+    ]);
+
+    return response()->json([
+        'message' => 'Rating submitted successfully',
+        'rating' => $rating,
+    ]);
+}
+
+/**
+ * Delete a rating for a product.
+ */
+public function deleteRating(Product $product)
+{
+    $rating = ProductRating::where('product_id', $product->id)
+        ->where('user_id', auth()->id())
+        ->first();
+
+    if (!$rating) {
+        return response()->json(['message' => 'Rating not found'], 404);
+    }
+
+    $rating->delete();
+
+    return response()->json(['message' => 'Rating deleted successfully']);
+}
+
+/**
+ * Store a comment for a product.
+ */
+public function storeComment(Request $request, Product $product)
+{
+    $request->validate([
+        'comment' => 'required|string|max:1000',
+    ]);
+
+    $comment = ProductComment::create([
+        'product_id' => $product->id,
+        'user_id' => auth()->id(),
+        'comment' => $request->comment,
+    ]);
+
+    $comment->load('user');
+
+    return response()->json([
+        'message' => 'Comment added successfully',
+        'comment' => $comment,
+    ]);
 }
 }

@@ -115,17 +115,16 @@ Route::prefix('profile/orders')->middleware(['auth'])->group(function () {
     Route::post('/{order}/return-request', [OrderController::class, 'requestReturn'])->name('orders.return.request');
 });
 
+// Track order routes (public - anyone can track with order number)
+// Must be defined BEFORE /orders/{order} to avoid being caught by the wildcard
+Route::get('/orders/track', [OrderController::class, 'trackForm'])->name('orders.track.form');
+Route::post('/orders/track', [OrderController::class, 'track'])->name('orders.track');
+
 // Direct /orders routes (alternative access)
 Route::middleware(['auth'])->group(function () {
     Route::get('/orders/{order}', [OrderController::class, 'show']);
     Route::get('/orders/{order}/status', [OrderController::class, 'status']);
     Route::delete('/orders/{order}', [OrderController::class, 'destroy']);
-});
-
-// Track order routes
-Route::middleware(['auth'])->group(function () {
-    Route::get('/orders/track', [OrderController::class, 'trackForm'])->name('orders.track.form');
-    Route::post('/orders/track', [OrderController::class, 'track'])->name('orders.track');
 });
 
 Route::post('/cart/checkout', [OrderController::class, 'checkout'])->name('checkout');
@@ -158,3 +157,10 @@ Route::middleware(['auth'])->group(function () {
 
 Route::post('/m-pesa/validation', [PaymentController::class, 'validation']);
 Route::post('/m-pesa/confirmation', [PaymentController::class, 'confirmation']);
+
+// Product ratings (requires auth)
+Route::middleware('auth')->group(function () {
+    Route::post('/products/{product}/rating', [\App\Http\Controllers\Pages\ProductsController::class, 'storeRating']);
+    Route::delete('/products/{product}/rating', [\App\Http\Controllers\Pages\ProductsController::class, 'deleteRating']);
+    Route::post('/products/{product}/comment', [\App\Http\Controllers\Pages\ProductsController::class, 'storeComment']);
+});

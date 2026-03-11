@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import Nav from '../Components/Nav.vue';
+import SupportChat from '../Support/Chat.vue';
 import { useDarkMode } from '../../composables/useDarkMode';
 
 const { isDark, toggleDarkMode } = useDarkMode();
@@ -15,6 +16,9 @@ const { isDark, toggleDarkMode } = useDarkMode();
         <Nav :isDark="isDark" @toggle-dark-mode="toggleDarkMode" />
         <slot />
     </div>
+    
+    <!-- Customer Support Chat -->
+    <SupportChat />
     
     </div>
 </template>
