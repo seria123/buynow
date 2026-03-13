@@ -7,9 +7,11 @@ use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\ViewAction;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\Action;
+use Filament\Actions\ViewAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 
 class OrdersTable
@@ -106,15 +108,15 @@ class OrdersTable
                     ->successNotificationTitle('Order status updated'),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\BulkAction::make('markShipped')
+                BulkActionGroup::make([
+                    BulkAction::make('markShipped')
                         ->label('Mark as Shipped')
                         ->icon('heroicon-o-truck')
                         ->color('primary')
                         ->action(fn ($records) => $records->each->update(['status' => 'shipped']))
                         ->requiresConfirmation(),
 
-                    Tables\Actions\BulkAction::make('markDelivered')
+                    BulkAction::make('markDelivered')
                         ->label('Mark as Delivered')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')

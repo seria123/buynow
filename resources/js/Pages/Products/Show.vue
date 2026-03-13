@@ -24,6 +24,47 @@ const isWishlistLoading = ref(false);
 const quantity = ref(1);
 const selectedImageIndex = ref(0);
 
+// Variant selection state
+const selectedVariantId = ref(null);
+
+// Get the selected variant object
+const selectedVariant = computed(() => {
+  const p = getProductData();
+  if (!p?.variants || selectedVariantId.value === null) return null;
+  return p.variants.find(v => v.id === selectedVariantId.value);
+});
+
+// Current price - use variant price if selected
+const currentPrice = computed(() => {
+  if (selectedVariant.value?.price !== undefined && selectedVariant.value?.price !== null) {
+    return selectedVariant.value.price;
+  }
+  return getProductData()?.price ?? 0;
+});
+
+// Current compare price - use variant compare price if selected
+const currentComparePrice = computed(() => {
+  if (selectedVariant.value?.compare_price !== undefined && selectedVariant.value?.compare_price !== null) {
+    return selectedVariant.value.compare_price;
+  }
+  return getProductData()?.compare_price ?? null;
+});
+
+// Current stock - use variant stock if selected
+const currentStock = computed(() => {
+  if (selectedVariant.value?.stats?.total_stock !== undefined) {
+    return selectedVariant.value.stats.total_stock;
+  }
+  return getProductData()?.stats?.total_stock ?? 0;
+});
+
+// Select a variant
+const selectVariant = (variantId) => {
+  selectedVariantId.value = variantId;
+  // Reset quantity when variant changes
+  quantity.value = 1;
+};
+
 // Rating state
 const isRatingSubmitting = ref(false);
 const selectedRating = ref(0);
@@ -130,9 +171,8 @@ const formatCurrency = (value) => {
 
 // Calculate discount percentage
 const discountPercentage = computed(() => {
-  const p = getProductData();
-  if (p?.price && p?.compare_price) {
-    return Math.round(((p.price - p.compare_price) / p.price) * 100);
+  if (currentPrice.value && currentComparePrice.value) {
+    return Math.round(((currentPrice.value - currentComparePrice.value) / currentPrice.value) * 100);
   }
   return 0;
 });
@@ -197,16 +237,22 @@ const handleAddToCart = async () => {
     const pathParts = window.location.pathname.split('/');
     productSlug = pathParts[pathParts.length - 1];
   }
-  
+
   if (!productId && !productSlug) {
     toast.error('Cannot find product', { position: 'bottom-left', autoClose: 3000 });
+    return;
+  }
+
+  // Check stock before adding
+  if (currentStock <= 0) {
+    toast.error('This product is out of stock', { position: 'bottom-left', autoClose: 3000 });
     return;
   }
   
   try {
     // Send product_id if available, otherwise send product_slug
     if (productId) {
-      await addToCart(productId, quantity.value);
+      await addToCart(productId, quantity.value, selectedVariantId.value);
     } else {
       // Use slug - create a custom add to cart with slug
       const csrf = document.querySelector('meta[name="csrf-token"]')?.content || 
@@ -220,7 +266,11 @@ const handleAddToCart = async () => {
           'X-Requested-With': 'XMLHttpRequest',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({ product_slug: productSlug, quantity: quantity.value }),
+        body: JSON.stringify({ 
+          product_slug: productSlug, 
+          quantity: quantity.value,
+          variant_id: selectedVariantId.value
+        }),
       });
     }
     toast.success('Product added to cart!', { position: 'bottom-left', autoClose: 2000 });
@@ -403,10 +453,10 @@ const formatDate = (dateString) => {
           <div class="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg">
             <div class="flex items-baseline gap-3">
               <span class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                {{ formatCurrency(product?.price) }}
+                {{ formatCurrency(currentPrice) }}
               </span>
-              <span v-if="product?.compare_price" class="text-lg text-gray-400 line-through">
-                {{ formatCurrency(product?.compare_price) }}
+              <span v-if="currentComparePrice" class="text-lg text-gray-400 line-through">
+                {{ formatCurrency(currentComparePrice) }}
               </span>
             </div>
             <div v-if="discountPercentage > 0" class="text-green-600 text-sm font-medium mt-1">
@@ -415,11 +465,11 @@ const formatDate = (dateString) => {
           </div>
 
           <!-- Stock Status -->
-          <div v-if="product?.stats?.total_stock > 0" class="flex items-center gap-2 text-green-600">
+          <div v-if="currentStock > 0" class="flex items-center gap-2 text-green-600">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
             </svg>
-            <span class="font-medium">In Stock ({{ product.stats.total_stock }} available)</span>
+            <span class="font-medium">In Stock ({{ currentStock }} available)</span>
           </div>
           <div v-else class="flex items-center gap-2 text-red-600">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -456,7 +506,11 @@ const formatDate = (dateString) => {
               <button
                 v-for="variant in product.variants"
                 :key="variant.id"
-                class="px-3 py-1.5 border border-gray-300 dark:border-zinc-600 rounded text-sm hover:border-yellow-400 hover:text-yellow-600 transition-colors"
+                @click="selectVariant(variant.id)"
+                class="px-3 py-1.5 border rounded text-sm transition-colors"
+                :class="selectedVariantId === variant.id 
+                  ? 'border-yellow-500 bg-yellow-400 text-black font-medium' 
+                  : 'border-gray-300 dark:border-zinc-600 hover:border-yellow-400 hover:text-yellow-600'"
               >
                 {{ variant.variantOptions?.map(v => v.value).join(' / ') || variant.name }}
               </button>
@@ -480,13 +534,13 @@ const formatDate = (dateString) => {
                   type="number"
                   v-model.number="quantity"
                   min="1"
-                  :max="product?.stats?.total_stock || 1"
+                  :max="currentStock || 1"
                   class="w-16 text-center border-x border-gray-300 dark:border-zinc-600 py-2 focus:outline-none"
                 />
                 <button 
-                  @click="quantity < (product?.stats?.total_stock || 1) && quantity++" 
+                  @click="quantity < (currentStock || 1) && quantity++" 
                   class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors"
-                  :disabled="quantity >= (product?.stats?.total_stock || 1)"
+                  :disabled="quantity >= (currentStock || 1)"
                 >
                   +
                 </button>

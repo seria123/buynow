@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Sales\Cart;
 use App\Models\Catalogue\Product;
+use App\Models\Catalogue\ProductVariant;
 use App\Models\Order;
 use App\Models\OrderItem;
 
@@ -23,6 +24,7 @@ class CartController extends Controller
                         ->map(function ($item) {
                             return [
                                 'product_id' => $item->product_id,
+                                'variant_id' => $item->variant_id,
                                 'name' => $item->product_name,
                                 'price' => $item->price,
                                 'quantity' => $item->quantity,
@@ -58,6 +60,10 @@ class CartController extends Controller
         // Accept either product_id (UUID) or product_slug
         $productId = $request->input('product_id');
         $productSlug = $request->input('product_slug');
+        $variantId = $request->input('variant_id');
+        
+        $product = null;
+        $variant = null;
         
         if ($productId) {
             $product = Product::with('category')->findOrFail($productId);
@@ -67,36 +73,55 @@ class CartController extends Controller
             return response()->json(['message' => 'Product ID or slug is required'], 422);
         }
 
+        // If variant_id is provided, load the variant
+        if ($variantId) {
+            $variant = ProductVariant::find($variantId);
+            if (!$variant || $variant->product_id !== $product->id) {
+                return response()->json(['message' => 'Invalid variant'], 422);
+            }
+        }
+
         if (Auth::check()) {
-            $this->addToDatabaseCart(Auth::id(), $product, $request->quantity);
+            $this->addToDatabaseCart(Auth::id(), $product, $variant, $request->quantity);
         } else {
-            $this->addToSessionCart($request, $product, $request->quantity);
+            $this->addToSessionCart($request, $product, $variant, $request->quantity);
         }
 
         return $this->index($request);
     }
 
-    private function addToDatabaseCart($userId, $product, $quantity)
+    private function addToDatabaseCart($userId, $product, $variant = null, $quantity)
     {
+        // Use variant price if available, otherwise use product price
+        $price = $variant && $variant->price ? $variant->price : $product->price;
+        $productName = $variant ? $variant->display_name : $product->name;
+        
+        // Check if same product+variant combo exists in cart
         $cartItem = Cart::firstOrNew([
             'user_id' => $userId,
             'product_id' => $product->id,
+            'variant_id' => $variant ? $variant->id : null,
         ]);
 
         $cartItem->quantity = ($cartItem->quantity ?? 0) + $quantity;
-        $cartItem->product_name = $product->name;
+        $cartItem->product_name = $productName;
         $cartItem->category_name = $product->category->name ?? null;
-        $cartItem->price = $product->price;
+        $cartItem->price = $price;
         $cartItem->save();
     }
 
-    private function addToSessionCart(Request $request, $product, $quantity)
+    private function addToSessionCart(Request $request, $product, $variant = null, $quantity)
     {
+        // Use variant price if available, otherwise use product price
+        $price = $variant && $variant->price ? $variant->price : $product->price;
+        $productName = $variant ? $variant->display_name : $product->name;
+        $variantId = $variant ? $variant->id : null;
+        
         $cart = $request->session()->get('cart', []);
         $found = false;
 
         foreach ($cart as &$item) {
-            if ($item['product_id'] == $product->id) {
+            if ($item['product_id'] == $product->id && ($item['variant_id'] ?? null) == $variantId) {
                 $item['quantity'] += $quantity;
                 $found = true;
                 break;
@@ -106,9 +131,10 @@ class CartController extends Controller
         if (!$found) {
             $cart[] = [
                 'product_id' => $product->id,
-                'product_name' => $product->name,
+                'variant_id' => $variantId,
+                'product_name' => $productName,
                 'category_name' => $product->category->name ?? null,
-                'price' => $product->price,
+                'price' => $price,
                 'quantity' => $quantity,
             ];
         }

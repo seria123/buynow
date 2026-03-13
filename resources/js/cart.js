@@ -83,11 +83,16 @@ const loadCart = async () => {
 // -----------------------------
 // Cart actions
 // -----------------------------
-const addToCart = async (productId, quantity = 1) => {
+const addToCart = async (productId, quantity = 1, variantId = null) => {
   const csrf = await getCsrfToken();
   if (!csrf) {
     console.error('[Cart] No CSRF token');
     throw new Error('No CSRF token');
+  }
+
+  const payload = { product_id: productId, quantity };
+  if (variantId) {
+    payload.variant_id = variantId;
   }
 
   const res = await debugFetch('/cart/add', {
@@ -99,7 +104,7 @@ const addToCart = async (productId, quantity = 1) => {
       'X-Requested-With': 'XMLHttpRequest',
       'Accept': 'application/json',
     },
-    body: JSON.stringify({ product_id: productId, quantity }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {

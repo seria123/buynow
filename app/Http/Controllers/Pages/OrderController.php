@@ -21,14 +21,6 @@ class OrderController extends Controller
         ->where('user_id', auth()->id()) // ← make sure auth()->id() matches the current logged-in user
         ->orderBy('created_at', 'desc')
         ->get();
-  $orders->each(function ($order) {
-        $order->orderItems->each(function ($item) {
-            if ($item->product) {
-                $item->product->thumbnail_url =
-                    $item->product->getFirstMediaUrl('thumbnail');
-            }
-        });
-    });
 
     return Inertia::render('Orders/Index', [
         'orders' => $orders,
@@ -199,8 +191,8 @@ public function trackForm()
             'order_number' => 'required|string|exists:orders,order_number',
         ]);
 
-        $order = Order::where('order_number', $request->order_number)
-            ->with('orderItems.product')
+        $order = Order::with(['orderItems.product'])
+            ->where('order_number', $request->order_number)
             ->first();
 
         if (!$order) {
@@ -210,7 +202,7 @@ public function trackForm()
         $statusSteps = ['pending', 'processing', 'shipped', 'delivered'];
 
         return Inertia::render('Orders/TrackResult', [
-            'order' => $order,
+            'order' => $order->load('orderItems.product'),
             'statusSteps' => $statusSteps,
         ]);
     }

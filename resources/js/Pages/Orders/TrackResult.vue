@@ -140,7 +140,7 @@ const paymentBadge = computed(() => {
         <div class="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 shadow-sm p-6">
           <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Items Ordered</h2>
           <div class="space-y-4">
-            <div v-for="item in order.orderItems" :key="item.id"
+            <div v-for="item in order.order_items" :key="item.id"
               class="flex items-center gap-4 p-4 bg-gray-50 dark:bg-zinc-800 rounded-2xl">
               <img
                 v-if="item.product && item.product.thumbnail_url"
@@ -164,7 +164,7 @@ const paymentBadge = computed(() => {
           <div class="border-t border-gray-100 dark:border-zinc-800 mt-5 pt-4">
             <div class="flex justify-between font-bold text-gray-900 dark:text-white">
               <span>Total</span>
-              <span>KES {{ Number(order.total_amount || order.orderItems?.reduce((s, i) => s + Number(i.subtotal), 0)).toLocaleString() }}</span>
+              <span>KES {{ Number(order.total_amount || order.order_items?.reduce((s, i) => s + Number(i.subtotal), 0)).toLocaleString() }}</span>
             </div>
           </div>
         </div>

@@ -106,12 +106,15 @@ class Product extends Model implements AuditableContract, HasMedia
     /**
      * Register media collections.
      */
-   public function registerMediaCollections(): void
-    {
-        $this->addMediaCollection('thumbnail')
-             ->useDisk('media') // <- important
-             ->singleFile();
-    }
+    public function registerMediaCollections(): void
+{
+    $this->addMediaCollection('thumbnail')
+         ->useDisk('media')
+         ->singleFile();
+
+    $this->addMediaCollection('images')
+         ->useDisk('media');
+}
 
        public function registerMediaConversions(Media $media = null): void
     {
@@ -151,9 +154,50 @@ class Product extends Model implements AuditableContract, HasMedia
     /**
      * Check if the product has a thumbnail.
      */
+    public function getGalleryImagesAttribute()
+{
+    return $this->getMedia('images')->map(function ($media) {
+        return [
+            'url' => $media->getUrl(),
+            'thumb_url' => $media->getUrl('thumb') ?: $media->getUrl(),
+        ];
+    });
+}
+
     public function hasThumbnail(): bool
     {
         return $this->getFirstMedia('thumbnail') !== null;
+    }
+
+    /**
+     * Get all product images for the gallery.
+     * Returns an array with thumbnail as first image (if exists) followed by gallery images.
+     */
+    public function getAllImages(): array
+    {
+        $images = [];
+        
+        // Add thumbnail as first image if exists
+        $thumbnail = $this->getFirstMedia('thumbnail');
+        if ($thumbnail) {
+            $images[] = [
+                'url' => $thumbnail->getUrl(),
+                'thumb_url' => $thumbnail->getUrl('thumb') ?: $thumbnail->getUrl(),
+                'is_thumbnail' => true,
+            ];
+        }
+        
+        // Add gallery images
+        $galleryImages = $this->getMedia('images');
+        foreach ($galleryImages as $image) {
+            $images[] = [
+                'url' => $image->getUrl(),
+                'thumb_url' => $image->getUrl('thumb') ?: $image->getUrl(),
+                'is_thumbnail' => false,
+            ];
+        }
+        
+        return $images;
     }
 
     /**

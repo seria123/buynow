@@ -60,10 +60,7 @@ class ProductsController extends Controller
         'price' => $product->price,
         'compare_price' => $product->compare_price,
         'thumbnail_url' => $product->thumbnail_url,
-            'images' => $product->getMedia('images')->map(fn ($media) => [
-                'url' => $media->getUrl(),
-                'thumb_url' => $media->getUrl('thumb'),
-            ])->toArray(),
+            'images' => $product->getAllImages(),
         'category' => $product->category ? [
             'id' => $product->category->id,
             'name' => $product->category->name,
@@ -470,10 +467,7 @@ class ProductsController extends Controller
             'price' => $product->price,
             'compare_price' => $product->compare_price,
             'thumbnail_url' => $thumbnailUrl,
-            'images' => $product->getMedia('images')->map(fn ($media) => [
-                'url' => $media->getUrl(),
-                'thumb_url' => $media->getUrl('thumb'),
-            ])->toArray(),
+            'images' => $product->getAllImages(),
             'description' => $product->description,
             'short_description' => $product->short_description,
             'category' => $product->category ? [

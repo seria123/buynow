@@ -18,7 +18,7 @@ class ProductsTable
     {
         return $table
             ->columns([
-                SpatieMediaLibraryImageColumn::make('images')
+                SpatieMediaLibraryImageColumn::make('thumbnail')
                     ->label('Image')
                     ->collection('thumbnail')
                     // ->circular()

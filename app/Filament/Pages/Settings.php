@@ -29,23 +29,53 @@ class Settings extends Page
     {
         return [
             [
+                'title' => 'General Settings',
+                'description' => 'Configure site name, currency, timezone, and other general options.',
+                'icon' => 'heroicon-o-globe-alt',
+                'url' => GeneralSettingsPage::getUrl(),
+                'color' => 'primary',
+                'badge' => 'Site',
+            ],
+            [
+                'title' => 'Email Settings',
+                'description' => 'Configure SMTP settings, mailgun, or SES for sending emails.',
+                'icon' => 'heroicon-o-envelope',
+                'url' => EmailSettingsPage::getUrl(),
+                'color' => 'success',
+                'badge' => 'Mail',
+            ],
+            [
+                'title' => 'Payment Settings',
+                'description' => 'Configure M-Pesa, Stripe, PayPal, and Cash on Delivery options.',
+                'icon' => 'heroicon-o-credit-card',
+                'url' => PaymentSettingsPage::getUrl(),
+                'color' => 'warning',
+                'badge' => 'Finance',
+            ],
+            [
+                'title' => 'Social Authentication',
+                'description' => 'Configure Google, Facebook, and Twitter OAuth login settings.',
+                'icon' => 'heroicon-o-users',
+                'url' => SocialAuthSettingsPage::getUrl(),
+                'color' => 'info',
+                'badge' => 'Auth',
+            ],
+            [
+                'title' => 'Tax Settings',
+                'description' => 'Configure tax rates, VAT settings, and tax-inclusive pricing.',
+                'icon' => 'heroicon-o-receipt-percent',
+                'url' => TaxSettingsPage::getUrl(),
+                'color' => 'danger',
+                'badge' => 'Tax',
+            ],
+            [
                 'title' => 'Product SKU Settings',
-                'description' => 'Configure SKU patterns and prefixes for product categories. Define how product SKUs are generated automatically.',
+                'description' => 'Configure SKU patterns and prefixes for product categories.',
                 'icon' => 'heroicon-o-hashtag',
                 'url' => ProductSkuSettings::getUrl(),
-                'color' => 'primary',
+                'color' => 'gray',
                 'badge' => 'Product',
             ],
-            // Future settings sections will be added here
-            // Example:
-            // [
-            //     'title' => 'Email Settings',
-            //     'description' => 'Configure email templates and SMTP settings',
-            //     'icon' => 'heroicon-o-envelope',
-            //     'url' => EmailSettings::getUrl(),
-            //     'color' => 'success',
-            //     'badge' => 'Communication',
-            // ],
         ];
     }
 }
