@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Users;
 
-use App\Filament\Pages\CustomerReport;
+use App\Filament\Resources\Users\Pages\CustomerReports;
 use App\Filament\Resources\Users\RelationManagers\PermissionsRelationManager;
 use App\Filament\Resources\Users\RelationManagers\RolesRelationManager;
 use App\Filament\Resources\Users\Pages\CreateUser;
@@ -60,7 +60,7 @@ class UserResource extends Resource
             'create' => CreateUser::route('/create'),
             'view' => ViewUser::route('/{record}'),
             'edit' => EditUser::route('/{record}/edit'),
-            'reports' => CustomerReport::route('/reports'),
+            'reports' => CustomerReports::route('/reports'),
         ];
     }
 }
