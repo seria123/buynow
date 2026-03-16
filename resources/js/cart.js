@@ -82,18 +82,13 @@ const loadCart = async () => {
 
 // -----------------------------
 // Cart actions
-// -----------------------------
-const addToCart = async (productId, quantity = 1, variantId = null) => {
+// ---// cart.js
+const addToCart = async (productSlug, quantity = 1, variantId = null) => {
   const csrf = await getCsrfToken();
-  if (!csrf) {
-    console.error('[Cart] No CSRF token');
-    throw new Error('No CSRF token');
-  }
+  if (!csrf) throw new Error('No CSRF token');
 
-  const payload = { product_id: productId, quantity };
-  if (variantId) {
-    payload.variant_id = variantId;
-  }
+  const payload = { product_slug: productSlug, quantity }; // <-- send slug
+  if (variantId) payload.variant_id = variantId;
 
   const res = await debugFetch('/cart/add', {
     method: 'POST',

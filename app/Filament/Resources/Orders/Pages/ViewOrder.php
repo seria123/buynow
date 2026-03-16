@@ -25,6 +25,7 @@ class ViewOrder extends ViewRecord
                             'pending'    => 'Pending',
                             'processing' => 'Processing',
                             'shipped'    => 'Shipped',
+                            'out_for_delivery' => 'Out for Delivery',
                             'delivered'  => 'Delivered',
                             'cancelled'  => 'Cancelled',
                         ])
@@ -36,16 +37,27 @@ class ViewOrder extends ViewRecord
                         ->options([
                             'paid'     => 'Paid',
                             'unpaid'   => 'Unpaid',
+                            'pending'  => 'Pending',
                             'refunded' => 'Refunded',
+                            'failed'   => 'Failed',
                         ])
                         ->default(fn () => $this->record->payment_status)
                         ->required(),
                 ])
                 ->action(function (array $data): void {
-                    $this->record->update([
-                        'status'         => $data['status'],
-                        'payment_status' => $data['payment_status'],
-                    ]);
+                    $oldStatus = $this->record->status;
+                    $oldPaymentStatus = $this->record->payment_status;
+                    
+                    // Update status if changed
+                    if ($data['status'] !== $oldStatus) {
+                        $this->record->updateStatus($data['status']);
+                    }
+                    
+                    // Update payment status if changed
+                    if ($data['payment_status'] !== $oldPaymentStatus) {
+                        $this->record->updatePaymentStatus($data['payment_status']);
+                    }
+                    
                     $this->refreshFormData(['status', 'payment_status']);
                 })
                 ->successNotificationTitle('Order updated successfully'),

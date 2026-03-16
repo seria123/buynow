@@ -604,7 +604,7 @@ const handleLogout = () => {
 >
   <!-- Cart Icon -->
   <Link
-    href="/profile/cart"
+    href="/cart/page"
     class="relative p-1 hover:bg-black/10 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 group"
   >
     <svg
@@ -668,7 +668,7 @@ const handleLogout = () => {
         </div>
     
         <Link
-          href="/profile/cart"
+          href="/cart/page"
           class="block mt-3 text-center bg-black text-white py-2 rounded-lg text-sm hover:bg-gray-800 font-semibold"
         >
           View Cart

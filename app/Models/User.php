@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Notifications\ResetPasswordNotification;
+use Carbon\Carbon;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use App\Models\Sales\Cart;
@@ -45,6 +46,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia, Filamen
         'facebook_id',
         'phone',
         'avatar',
+        'customer_group_id',
     ];
 
     /**
@@ -134,5 +136,124 @@ public function cartItems()
 public function wishlist()
 {
     return $this->hasMany(Wishlist::class, 'user_id', 'id');
+}
+
+/**
+ * Get the customer group that the user belongs to
+ */
+public function customerGroup()
+{
+    return $this->belongsTo(CustomerGroup::class, 'customer_group_id');
+}
+
+/**
+ * Get the discount rate for the user based on their customer group
+ */
+public function getDiscountRateAttribute(): float
+{
+    return $this->customerGroup?->discount_rate ?? 0;
+}
+
+/**
+ * Apply customer group discount to a price
+ */
+public function applyGroupDiscount(float $price): float
+{
+    $discountRate = $this->discount_rate;
+    return $price - ($price * ($discountRate / 100));
+}
+
+/**
+ * Get total lifetime value (total amount spent)
+ */
+public function getLifetimeValueAttribute(): float
+{
+    return $this->orders()->sum('total_amount') ?? 0;
+}
+
+/**
+ * Get total number of orders placed
+ */
+public function getTotalOrdersAttribute(): int
+{
+    return $this->orders()->count() ?? 0;
+}
+
+/**
+ * Get average order value
+ */
+public function getAverageOrderValueAttribute(): float
+{
+    $totalOrders = $this->total_orders;
+    if ($totalOrders === 0) {
+        return 0;
+    }
+    return $this->lifetime_value / $totalOrders;
+}
+
+/**
+ * Check if customer is returning (has more than 1 order)
+ */
+public function getIsReturningAttribute(): bool
+{
+    return $this->total_orders > 1;
+}
+
+/**
+ * Get the customer's first order date
+ */
+public function getFirstOrderDateAttribute(): ?Carbon
+{
+    // If already set as an attribute (from selectRaw), convert to Carbon
+    if (isset($this->attributes['first_order_date'])) {
+        $value = $this->attributes['first_order_date'];
+        if ($value === null) {
+            return null;
+        }
+        return Carbon::parse($value);
+    }
+    
+    $value = $this->orders()->min('created_at');
+    
+    if ($value === null) {
+        return null;
+    }
+    
+    return $value instanceof Carbon ? $value : Carbon::parse($value);
+}
+
+/**
+ * Get the customer's last order date
+ */
+public function getLastOrderDateAttribute(): ?Carbon
+{
+    // If already set as an attribute (from selectRaw), convert to Carbon
+    if (isset($this->attributes['last_order_date'])) {
+        $value = $this->attributes['last_order_date'];
+        if ($value === null) {
+            return null;
+        }
+        return Carbon::parse($value);
+    }
+    
+    $value = $this->orders()->max('created_at');
+    
+    if ($value === null) {
+        return null;
+    }
+    
+    return $value instanceof Carbon ? $value : Carbon::parse($value);
+}
+
+/**
+ * Check if customer is active (has ordered in last 90 days)
+ */
+public function getIsActiveAttribute(): bool
+{
+    $lastOrder = $this->last_order_date;
+    if (!$lastOrder) {
+        return false;
+    }
+    return $lastOrder->diffInDays(now()) <= 90;
 }
 }

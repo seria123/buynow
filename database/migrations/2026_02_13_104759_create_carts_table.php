@@ -22,6 +22,7 @@ return new class extends Migration
             // UUID references for user and product
             $table->uuid('user_id')->nullable();
             $table->uuid('product_id');
+              $table->uuid('variant_id')->nullable(); //
 
             // Cart item details
             $table->string('product_name');
@@ -37,7 +38,7 @@ return new class extends Migration
             $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
 
             // Optional: ensure uniqueness of same product per user
-            $table->unique(['user_id', 'product_id']);
+            $table->unique(['user_id', 'product_id','variant_id']);
         });
        }
 

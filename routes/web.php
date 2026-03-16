@@ -13,6 +13,7 @@ use App\Http\Controllers\Pages\SettingsController;
 use App\Http\Controllers\Pages\SupportController;
 use App\Http\Controllers\Pages\PaymentController;
 use App\Http\Controllers\Pages\StoreController;
+use App\Http\Controllers\InvoiceController;
 use App\Models\Catalogue\Category;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -88,16 +89,16 @@ Route::post('/profile/password', [ProfileController::class, 'updatePassword'])
     ->name('profile.security');
     Route::get('/product/{slug}', [ProductsController::class, 'show'])->name('products.show');
 
- // User cart page (Inertia)
-Route::middleware('auth')->get('/profile/cart', [CartController::class, 'page'])->name('cart.page');
+ // User cart page (Inertia) - accessible to all users
+Route::get('/cart/page', [CartController::class, 'page']);
+Route::get('/profile/cart', [CartController::class, 'page'])->middleware('auth')->name('cart.page');
 
 // Cart routes (public for guests, includes session + CSRF)
 Route::middleware('web')->group(function () {
     Route::get('/cart', [CartController::class, 'index']);
-    Route::post('/cart/add', [CartController::class, 'add']);
-    Route::post('/cart/remove/{id}', [CartController::class, 'remove']);
+    Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
+    Route::post('/cart/remove/{productId}', [CartController::class, 'remove']);
     Route::post('/cart/clear', [CartController::class, 'clear']);
-    Route::get('/cart/page', [CartController::class, 'page']);
 
     Route::middleware('auth')->group(function () {
         Route::post('/cart/checkout', [CartController::class, 'checkout']);
@@ -125,6 +126,23 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/orders/{order}', [OrderController::class, 'show']);
     Route::get('/orders/{order}/status', [OrderController::class, 'status']);
     Route::delete('/orders/{order}', [OrderController::class, 'destroy']);
+});
+
+// Invoice routes
+// Customer invoice routes (view/download invoice from order details)
+Route::prefix('profile/orders/{order}/invoice')->middleware(['auth'])->group(function () {
+    Route::get('/', [InvoiceController::class, 'customerView'])->name('orders.invoice');
+    Route::get('/download', [InvoiceController::class, 'customerDownloadPdf'])->name('orders.invoice.download');
+});
+
+// Admin invoice routes
+Route::prefix('admin/invoices')->middleware(['auth'])->group(function () {
+    Route::get('/', [InvoiceController::class, 'index'])->name('admin.invoices.index');
+    Route::get('/{invoice}', [InvoiceController::class, 'show'])->name('admin.invoices.show');
+    Route::post('/order/{order}/create', [InvoiceController::class, 'createForOrder'])->name('admin.invoices.create');
+    Route::patch('/{invoice}/status', [InvoiceController::class, 'updateStatus'])->name('admin.invoices.updateStatus');
+    Route::get('/{invoice}/download', [InvoiceController::class, 'downloadPdf'])->name('admin.invoices.download');
+    Route::get('/{invoice}/view', [InvoiceController::class, 'viewPdf'])->name('admin.invoices.view');
 });
 
 Route::post('/cart/checkout', [OrderController::class, 'checkout'])->name('checkout');

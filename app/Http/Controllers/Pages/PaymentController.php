@@ -233,8 +233,9 @@ class PaymentController extends Controller
             if ($orderRef) {
                 $order = Order::where('order_number', $orderRef)->first();
                 if ($order) {
-                    $order->status = 'processing';
-                    $order->payment_status = 'paid';
+                    // Use the notification method to update payment status and send notification
+                    $order->updatePaymentStatus('paid');
+                    $order->updateStatus('processing');
                     $order->payment_method = 'mpesa';
                     $order->save();
                     Log::info("Order {$order->id} marked as paid via M-Pesa");

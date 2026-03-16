@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Models\CustomerGroup;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
@@ -49,6 +51,19 @@ class UserForm
                             ->label('Avatar URL')
                             ->placeholder('https://...')
                             ->columnSpanFull(),
+                    ]),
+                Section::make('Customer Group')
+                    ->description('Assign the user to a customer group for pricing and promotions.')
+                    ->icon('heroicon-o-user-group')
+                    ->collapsible()
+                    ->collapsed()
+                    ->schema([
+                        Select::make('customer_group_id')
+                            ->label('Customer Group')
+                            ->placeholder('Select a customer group')
+                            ->options(fn () => CustomerGroup::active()->pluck('name', 'id'))
+                            ->searchable()
+                            ->helperText('Leave empty for regular customers without group discounts.'),
                     ]),
                 Section::make('Security')
                     ->description('Manage authentication details and critical security milestones.')

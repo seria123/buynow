@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, toRaw } from 'vue';
+import { ref, computed, onMounted, toRaw, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { Head, router } from '@inertiajs/vue3';
 import MainLayout from '../Layouts/MainLayout.vue';
@@ -23,6 +23,14 @@ onMounted(() => {
 const isWishlistLoading = ref(false);
 const quantity = ref(1);
 const selectedImageIndex = ref(0);
+
+// Ensure main image is set on mount
+onMounted(() => {
+  // Make sure we have valid image index after mount
+  if (productImages.value.length > 0) {
+    selectedImageIndex.value = 0;
+  }
+});
 
 // Variant selection state
 const selectedVariantId = ref(null);
@@ -130,23 +138,140 @@ console.log('Show.vue - computed product:', toRaw(productData.value));
 
 // Get all available images for the product - use helper function
 const productImages = computed(() => {
-  const p = getProductData();
-  if (p?.images && p.images.length > 0) {
-    return p.images;
+  // Get product from props or page props - directly access to ensure we have data
+  const product = props.product || page.props.product;
+  const p = product || getProductData();
+  
+  console.log('productImages - product:', p);
+  console.log('productImages - p.images:', p?.images);
+  console.log('productImages - p.all_images:', p?.all_images);
+  console.log('productImages - p.thumbnail_url:', p?.thumbnail_url);
+  
+  // If a variant is selected, check for variant images first
+  if (selectedVariant.value?.images && Array.isArray(selectedVariant.value.images) && selectedVariant.value.images.length > 0) {
+    console.log('Using variant images:', selectedVariant.value.images);
+    return selectedVariant.value.images;
   }
+  // Check if variant has its own thumbnail_url
+  if (selectedVariant.value?.thumbnail_url) {
+    console.log('Using variant thumbnail_url');
+    return [{ url: selectedVariant.value.thumbnail_url, thumb_url: selectedVariant.value.thumbnail_url }];
+  }
+  
+  // Check for main product images array - try common property names
+  const imagesProp = p?.images || p?.all_images || p?.product_images;
+  if (imagesProp && Array.isArray(imagesProp) && imagesProp.length > 0) {
+    console.log('Using main product images:', imagesProp);
+    return imagesProp;
+  }
+  
   // If no images array, check thumbnail_url
   if (p?.thumbnail_url) {
+    console.log('Using main product thumbnail_url');
     return [{ url: p.thumbnail_url, thumb_url: p.thumbnail_url }];
   }
+  
+  // Try to get images from media relationship or other common patterns
+  if (p?.media && Array.isArray(p.media) && p.media.length > 0) {
+    return p.media.map(m => ({ url: m.original_url, thumb_url: m.thumbnail_url || m.url }));
+  }
+  
+  console.log('No images found');
+  // Final fallback - return empty array
   return [];
 });
 
-// Current main image (can be changed by clicking thumbnails)
-const mainImage = computed(() => {
-  if (productImages.value.length > 0) {
-    return productImages.value[selectedImageIndex.value]?.url || productImages.value[selectedImageIndex.value]?.thumb_url;
+// Watch for variant changes to reset image index
+watch(selectedVariantId, () => {
+  selectedImageIndex.value = 0;
+});
+
+// Get image URL from various possible properties
+const getImageUrl = (img) => {
+  if (!img) return null;
+  
+  // Handle case where img might be a string (direct URL)
+  if (typeof img === 'string') {
+    return img.trim() || null;
   }
+  
+  // Try common image URL properties
+  const urlProps = ['url', 'thumb_url', 'thumbnail_url', 'src', 'image', 'image_url', 'path'];
+  for (const prop of urlProps) {
+    if (img[prop] && typeof img[prop] === 'string' && img[prop].trim() !== '') {
+      return img[prop];
+    }
+  }
+  
   return null;
+};
+
+// Current main image (can be changed by clicking thumbnails)
+// Always default to first image if selectedIndex is out of bounds
+const mainImage = computed(() => {
+  // Get product directly - try multiple sources
+  const product = props.product || page.props.product || getProductData();
+  
+  // Get images from productImages
+  const images = productImages.value;
+  
+  // First try: use selected image from productImages
+  if (images && images.length > 0) {
+    const index = selectedImageIndex.value < images.length ? selectedImageIndex.value : 0;
+    const currentImg = images[index];
+    const imgUrl = getImageUrl(currentImg);
+    if (imgUrl) return imgUrl;
+  }
+  
+  // Second try: variant thumbnail
+  if (selectedVariant.value?.thumbnail_url) {
+    return selectedVariant.value.thumbnail_url;
+  }
+  
+  // Third try: product thumbnail_url
+  if (product?.thumbnail_url) {
+    return product.thumbnail_url;
+  }
+  
+  // Return placeholder as final fallback
+  return fallbackImage;
+});
+
+// Simple gray background SVG as fallback for missing images
+const fallbackImage = '/images/placeholder.svg';
+
+// Get thumbnail for thumbnails section - show raw url for debugging
+const getThumbnailUrl = (img, index) => {
+  // Show all available properties for debugging
+  console.log('Thumbnail ' + index + ':', JSON.stringify(img));
+  
+  // Handle case where img might be a string (direct URL)
+  if (typeof img === 'string' && img.trim() !== '') {
+    return img;
+  }
+  
+  // Check for various possible URL properties
+  if (img) {
+    // Try common image URL properties
+    const urlProps = ['url', 'thumb_url', 'thumbnail_url', 'src', 'image', 'image_url', 'path'];
+    for (const prop of urlProps) {
+      if (img[prop] && typeof img[prop] === 'string' && img[prop].trim() !== '') {
+        return img[prop];
+      }
+    }
+  }
+  
+  // Return placeholder as final fallback
+  console.log('Thumbnail ' + index + ' using placeholder');
+  return '/images/placeholder.svg';
+};
+
+// Fallback main image - always returns first available image for initial display
+const fallbackMainImage = computed(() => {
+  if (productImages.value.length > 0) {
+    return getImageUrl(productImages.value[0]) || fallbackImage;
+  }
+  return fallbackImage;
 });
 
 // Select image from gallery
@@ -223,56 +348,29 @@ const handleAddToCart = async () => {
   const p = getProductData();
   console.log('Product for cart:', toRaw(p));
   
-  // Try different ways to get product ID or slug
-  let productId = p?.id;
+  // Get product slug from props
   let productSlug = p?.slug;
   
-  // If no ID, try slug from props
-  if (!productId && productSlug) {
-    // Use slug - will be sent as product_slug to backend
-  }
-  
-  // If still no ID or slug, try to get from URL
-  if (!productId && !productSlug) {
+  // If no slug, try to get from URL
+  if (!productSlug) {
     const pathParts = window.location.pathname.split('/');
     productSlug = pathParts[pathParts.length - 1];
   }
 
-  if (!productId && !productSlug) {
+  if (!productSlug) {
     toast.error('Cannot find product', { position: 'bottom-left', autoClose: 3000 });
     return;
   }
 
   // Check stock before adding
-  if (currentStock <= 0) {
+  if (currentStock.value <= 0) {
     toast.error('This product is out of stock', { position: 'bottom-left', autoClose: 3000 });
     return;
   }
   
   try {
-    // Send product_id if available, otherwise send product_slug
-    if (productId) {
-      await addToCart(productId, quantity.value, selectedVariantId.value);
-    } else {
-      // Use slug - create a custom add to cart with slug
-      const csrf = document.querySelector('meta[name="csrf-token"]')?.content || 
-                   document.cookie.split('; ').find(c => c.startsWith('XSRF-TOKEN='))?.split('=')[1];
-      await fetch('/cart/add', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': csrf || '',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ 
-          product_slug: productSlug, 
-          quantity: quantity.value,
-          variant_id: selectedVariantId.value
-        }),
-      });
-    }
+    // Send product_slug to backend (addToCart expects slug)
+    await addToCart(productSlug, quantity.value, selectedVariantId.value);
     toast.success('Product added to cart!', { position: 'bottom-left', autoClose: 2000 });
   } catch (err) {
     toast.error('Failed to add product to cart', { position: 'bottom-left', autoClose: 3000 });
@@ -410,24 +508,30 @@ const formatDate = (dateString) => {
               :src="mainImage"
               :alt="product?.name"
               class="w-full h-[300px] md:h-[400px] lg:h-[500px] object-contain bg-white"
+              @error="(e) => e.target.src = '/images/placeholder.svg'"
             />
             <div v-else class="w-full h-[300px] md:h-[400px] lg:h-[500px] bg-gray-100 flex items-center justify-center">
-              <span class="text-gray-400">No image available</span>
+              <img src="/images/placeholder.svg" alt="No image available" class="w-32 h-32 object-contain opacity-50" />
             </div>
           </div>
 
           <!-- Product Gallery / Thumbnails -->
-          <div v-if="productImages.length > 1" class="mt-4">
+          <div v-if="productImages.length >= 1" class="mt-4">
             <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Product Images</h3>
-            <div class="flex gap-2 overflow-x-auto">
+            <div class="flex gap-2 overflow-x-auto pb-2">
               <div 
                 v-for="(img, index) in productImages" 
                 :key="index"
                 @click="selectImage(index)"
-                class="w-20 h-20 flex-shrink-0 rounded-lg border-2 overflow-hidden cursor-pointer hover:border-yellow-400 transition-colors"
-                :class="selectedImageIndex === index ? 'border-yellow-500' : 'border-gray-200'"
+                class="w-20 h-20 flex-shrink-0 rounded-lg border-2 overflow-hidden cursor-pointer hover:border-yellow-400 transition-colors bg-gray-100"
+                :class="selectedImageIndex === index ? 'border-yellow-500 ring-2 ring-yellow-500 ring-opacity-50' : 'border-gray-200'"
               >
-                <img :src="img.thumb_url || img.url" :alt="product?.name" class="w-full h-full object-cover" />
+                <img 
+                  :src="getThumbnailUrl(img, index)" 
+                  :alt="product?.name + ' image ' + (index + 1)" 
+                  class="w-full h-full object-cover"
+                  @error="(e) => e.target.src = '/images/placeholder.svg'"
+                />
               </div>
             </div>
           </div>

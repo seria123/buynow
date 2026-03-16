@@ -17,7 +17,7 @@ const isActive = (url) => page.url === url;
 const navItems = [
     { name: 'Account Overview', href: '/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
     { name: 'Edit Profile', href: '/profile/edit', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
-    {name: 'Cart',href: '/profile/cart',icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z', },
+    {name: 'Cart',href: '/cart/page',icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z', },
     { name: 'My Orders', href: '/profile/orders', icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z' },
     { name: 'Wishlist', href: '/profile/wishlist', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
     { name: 'Security', href: '/profile/security', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },

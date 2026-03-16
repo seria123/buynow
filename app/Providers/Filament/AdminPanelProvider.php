@@ -2,11 +2,14 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\CustomerReport;
 use App\Filament\Pages\Settings;
+use App\Filament\Resources\RefundResource;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationItem;
 use Filament\Navigation\MenuItem;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
@@ -35,9 +38,13 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->maxContentWidth('full')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
+            ->resources([
+                RefundResource::class,
+            ])
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
+                CustomerReport::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
@@ -54,6 +61,16 @@ class AdminPanelProvider extends PanelProvider
                     ->label('Settings')
                     ->url(fn (): string => Settings::getUrl())
                     ->icon('heroicon-o-cog-6-tooth'),
+            ])
+            ->navigationItems([
+                NavigationItem::make('Invoices')
+                    ->url(fn (): string => route('admin.invoices.index'))
+                    ->icon('heroicon-o-document-text')
+                    ->isActiveWhen(fn (): bool => request()->routeIs('admin.invoices.*')),
+                NavigationItem::make('Refunds')
+                    ->url(fn (): string => route('filament.admin.resources.refunds.index'))
+                    ->icon('heroicon-o-receipt-refund')
+                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.refunds.*')),
             ])
             ->middleware([
                 EncryptCookies::class,

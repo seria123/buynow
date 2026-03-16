@@ -12,8 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('carts', function (Blueprint $table) {
-            $table->uuid('variant_id')->nullable()->after('product_id');
-            $table->foreign('variant_id')->references('id')->on('product_variants')->onDelete('set null');
+            //
         });
     }
 
@@ -23,8 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('carts', function (Blueprint $table) {
-            $table->dropForeign(['variant_id']);
-            $table->dropColumn('variant_id');
+            //
         });
     }
 };

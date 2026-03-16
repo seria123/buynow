@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Pages;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use App\Models\Sales\Cart;
 use App\Models\Catalogue\Product;
 use App\Models\Catalogue\ProductVariant;
@@ -51,70 +53,60 @@ class CartController extends Controller
     // -----------------------------
     // Add item to cart
     // -----------------------------
-    public function add(Request $request)
-    {
-        $request->validate([
-            'quantity' => 'required|integer|min:1',
-        ]);
+  public function add(Request $request)
+{
+    $request->validate([
+        'quantity' => 'required|integer|min:1',
+    ]);
 
-        // Accept either product_id (UUID) or product_slug
-        $productId = $request->input('product_id');
-        $productSlug = $request->input('product_slug');
-        $variantId = $request->input('variant_id');
-        
-        $product = null;
-        $variant = null;
-        
-        if ($productId) {
-            $product = Product::with('category')->findOrFail($productId);
-        } elseif ($productSlug) {
-            $product = Product::with('category')->where('slug', $productSlug)->firstOrFail();
-        } else {
-            return response()->json(['message' => 'Product ID or slug is required'], 422);
-        }
+    $productSlug = $request->input('product_slug');
+    $variantId = $request->input('variant_id');
 
-        // If variant_id is provided, load the variant
-        if ($variantId) {
-            $variant = ProductVariant::find($variantId);
-            if (!$variant || $variant->product_id !== $product->id) {
-                return response()->json(['message' => 'Invalid variant'], 422);
-            }
-        }
-
-        if (Auth::check()) {
-            $this->addToDatabaseCart(Auth::id(), $product, $variant, $request->quantity);
-        } else {
-            $this->addToSessionCart($request, $product, $variant, $request->quantity);
-        }
-
-        return $this->index($request);
+    if (!$productSlug) {
+        return response()->json(['message' => 'Product slug is required'], 422);
     }
 
-    private function addToDatabaseCart($userId, $product, $variant = null, $quantity)
-    {
-        // Use variant price if available, otherwise use product price
-        $price = $variant && $variant->price ? $variant->price : $product->price;
-        $productName = $variant ? $variant->display_name : $product->name;
-        
-        // Check if same product+variant combo exists in cart
-        $cartItem = Cart::firstOrNew([
-            'user_id' => $userId,
-            'product_id' => $product->id,
-            'variant_id' => $variant ? $variant->id : null,
-        ]);
+    // Load product by slug
+    $product = Product::with('category')->where('slug', $productSlug)->firstOrFail();
 
-        $cartItem->quantity = ($cartItem->quantity ?? 0) + $quantity;
-        $cartItem->product_name = $productName;
-        $cartItem->category_name = $product->category->name ?? null;
-        $cartItem->price = $price;
-        $cartItem->save();
+    // Load variant if provided
+    $variant = null;
+    if ($variantId) {
+        $variant = ProductVariant::find($variantId);
+        if (!$variant || $variant->product_id !== $product->id) {
+            return response()->json(['message' => 'Invalid variant'], 422);
+        }
     }
 
-    private function addToSessionCart(Request $request, $product, $variant = null, $quantity)
-    {
-        // Use variant price if available, otherwise use product price
-        $price = $variant && $variant->price ? $variant->price : $product->price;
-        $productName = $variant ? $variant->display_name : $product->name;
+    if (Auth::check()) {
+        $this->addToDatabaseCart(Auth::id(), $product, $request->quantity, $variant);
+    } else {
+        $this->addToSessionCart($request, $product, $request->quantity, $variant);
+    }
+
+    return $this->index($request);
+}
+   private function addToDatabaseCart($userId, $product, $quantity, $variant = null)
+{
+   $price = $variant?->price ?? $product->price;
+$productName = $variant?->name ?? $product->name;
+    $cartItem = Cart::firstOrNew([
+        'user_id' => $userId,
+        'product_id' => $product->id,
+        'variant_id' => $variant ? $variant->id : null,
+    ]);
+
+    $cartItem->quantity = ($cartItem->quantity ?? 0) + $quantity;
+    $cartItem->product_name = $productName;
+    $cartItem->category_name = $product->category->name ?? null;
+    $cartItem->price = (int)$price;
+    $cartItem->save();
+}
+
+   private function addToSessionCart(Request $request, $product, $quantity, $variant = null)
+{
+    $price = $variant && $variant->price ? $variant->price : $product->price;
+        $productName = $variant ? $variant->name : $product->name;
         $variantId = $variant ? $variant->id : null;
         
         $cart = $request->session()->get('cart', []);
@@ -169,6 +161,49 @@ class CartController extends Controller
         } else {
             $request->session()->forget('cart');
         }
+
+        return $this->index($request);
+    }
+
+    // -----------------------------
+    // Merge guest cart with user cart on login
+    // -----------------------------
+    public function merge(Request $request)
+    {
+        if (!Auth::check()) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $guestCart = $request->session()->get('cart', []);
+        
+        if (empty($guestCart)) {
+            return $this->index($request);
+        }
+
+        foreach ($guestCart as $guestItem) {
+            $existingItem = Cart::where('user_id', Auth::id())
+                ->where('product_id', $guestItem['product_id'])
+                ->where('variant_id', $guestItem['variant_id'] ?? null)
+                ->first();
+
+            if ($existingItem) {
+                $existingItem->quantity += $guestItem['quantity'];
+                $existingItem->save();
+            } else {
+                Cart::create([
+                    'user_id' => Auth::id(),
+                    'product_id' => $guestItem['product_id'],
+                    'variant_id' => $guestItem['variant_id'] ?? null,
+                    'product_name' => $guestItem['product_name'],
+                    'category_name' => $guestItem['category_name'] ?? null,
+                    'price' => $guestItem['price'],
+                    'quantity' => $guestItem['quantity'],
+                ]);
+            }
+        }
+
+        // Clear guest cart
+        $request->session()->forget('cart');
 
         return $this->index($request);
     }

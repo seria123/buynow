@@ -10,6 +10,7 @@ import { toast } from 'vue3-toastify';
 const props = defineProps({
   order: { type: Object, required: true },
   summary: { type: Object, required: true },
+  invoice: { type: Object, default: null },
 });
 
 // Reactive state
@@ -18,6 +19,15 @@ const summaryState = ref({ ...props.summary });
 const showPaymentModal = ref(false);
 const isProcessing = ref(false);
 let pollInterval = null;
+
+// Get refunds from order
+const refunds = computed(() => orderState.value.refunds || []);
+const hasRefunds = computed(() => refunds.value.length > 0);
+const totalRefunded = computed(() => {
+  return refunds.value
+    .filter(r => r.status === 'completed')
+    .reduce((sum, r) => sum + parseFloat(r.amount), 0);
+});
 
 // ----- Polling for payment status -----
 async function pollPaymentStatus() {
@@ -82,6 +92,30 @@ function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString(undefined, options);
 }
 
+// ----- Get status color -----
+function getRefundStatusColor(status) {
+  const colors = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    processing: 'bg-blue-100 text-blue-800',
+    completed: 'bg-green-100 text-green-800',
+    failed: 'bg-red-100 text-red-800',
+    rejected: 'bg-red-100 text-red-800',
+  };
+  return colors[status] || 'bg-gray-100 text-gray-800';
+}
+
+// ----- Get status label -----
+function getRefundStatusLabel(status) {
+  const labels = {
+    pending: 'Pending',
+    processing: 'Processing',
+    completed: 'Completed',
+    failed: 'Failed',
+    rejected: 'Rejected',
+  };
+  return labels[status] || status;
+}
+
 // ----- Financial calculations (computed) -----
 const itemsTotal = computed(() => {
   if (!orderState.value.order_items) return 0;
@@ -113,6 +147,47 @@ const grandTotal = computed(() => itemsTotal.value + taxAmount.value + shippingF
           Placed on: {{ formatDate(orderState.created_at) }} <br>
           Status: <span class="font-semibold">{{ orderState.status }}</span> |
           Payment: <span class="font-semibold">{{ orderState.payment_status }}</span>
+        </div>
+
+        <!-- Refunds Section -->
+        <div v-if="hasRefunds" class="bg-white dark:bg-zinc-800 p-4 rounded shadow">
+          <h2 class="font-bold text-lg mb-3 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+            Refund Information
+          </h2>
+          
+          <div class="space-y-3">
+            <div v-for="refund in refunds" :key="refund.id" 
+                 class="border rounded-lg p-3 flex justify-between items-center">
+              <div>
+                <div class="font-semibold">
+                  {{ refund.refund_type === 'full' ? 'Full Refund' : 'Partial Refund' }}
+                </div>
+                <div class="text-sm text-gray-500">
+                  Amount: KES {{ parseFloat(refund.amount).toFixed(2) }}
+                </div>
+                <div v-if="refund.reason" class="text-sm text-gray-500">
+                  Reason: {{ refund.reason }}
+                </div>
+                <div class="text-xs text-gray-400">
+                  {{ formatDate(refund.created_at) }}
+                </div>
+              </div>
+              <div :class="getRefundStatusColor(refund.status)" 
+                   class="px-3 py-1 rounded-full text-sm font-medium">
+                {{ getRefundStatusLabel(refund.status) }}
+              </div>
+            </div>
+          </div>
+
+          <div v-if="totalRefunded > 0" class="mt-3 pt-3 border-t">
+            <div class="flex justify-between font-bold text-green-600">
+              <span>Total Refunded:</span>
+              <span>KES {{ totalRefunded.toFixed(2) }}</span>
+            </div>
+          </div>
         </div>
 
         <!-- Items Table -->
@@ -168,6 +243,18 @@ const grandTotal = computed(() => itemsTotal.value + taxAmount.value + shippingF
                   :disabled="isProcessing">
             {{ isProcessing ? 'Processing...' : 'Pay Now' }}
           </button>
+        </div>
+
+        <!-- Invoice Button -->
+        <div v-if="invoice" class="mt-4">
+          <a :href="route('orders.invoice.download', orderState.id)" 
+             target="_blank"
+             class="inline-flex items-center px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Download Invoice
+          </a>
         </div>
 
         <!-- Payment Modal -->

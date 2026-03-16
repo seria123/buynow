@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use App\Models\Sales\Order;
 use App\Models\Sales\OrderItem;
+use App\Models\Sales\Invoice;
 use Inertia\Inertia;
 
 class OrderController extends Controller
@@ -35,27 +36,31 @@ class OrderController extends Controller
  {
    $order->load('orderItems.product');
 
-    $itemsTotal = $order->orderItems->sum(function ($item) {
-        return (float) $item->subtotal;
-    });
+   // Load refunds for the order
+   $order->load('refunds');
 
-    $vat = $itemsTotal * 0.16;
-    $discount = 0;
-    $shipping = 150;
+   $itemsTotal = $order->orderItems->sum(function ($item) {
+       return (float) $item->subtotal;
+   });
 
-    $grandTotal = $itemsTotal + $vat + $shipping - $discount;
+   $vat = $itemsTotal * 0.16;
+   $discount = 0;
+   $shipping = 150;
 
-    return Inertia::render('Orders/Show', [
-        'order' => $order,
-        'summary' => [
-            'itemsTotal' => $itemsTotal,
-            'vat' => $vat,
-            'shipping' => $shipping,
-            'discount' => $discount,
-            'grandTotal' => $grandTotal,
-        ]
-    ]);
-}
+   $grandTotal = $itemsTotal + $vat + $shipping - $discount;
+
+   return Inertia::render('Orders/Show', [
+       'order' => $order,
+       'invoice' => $order->invoice,
+       'summary' => [
+           'itemsTotal' => $itemsTotal,
+           'vat' => $vat,
+           'shipping' => $shipping,
+           'discount' => $discount,
+           'grandTotal' => $grandTotal,
+       ]
+   ]);
+ }
 
     // -----------------------------
     // Checkout the cart
@@ -101,6 +106,20 @@ class OrderController extends Controller
                 'subtotal' => $product->price * $cartItem->quantity,
             ]);
         }
+
+        // Create invoice for the order
+        $orderItemsTotal = $order->orderItems->sum('subtotal');
+        $taxAmount = $orderItemsTotal * 0.16; // 16% VAT
+        $totalAmount = $orderItemsTotal + $taxAmount;
+
+        Invoice::create([
+            'order_id' => $order->id,
+            'subtotal' => $orderItemsTotal,
+            'tax_amount' => $taxAmount,
+            'total_amount' => $totalAmount,
+            'status' => 'pending',
+            'invoice_date' => now()->toDateString(),
+        ]);
     }
 
     // Clear the cart
@@ -143,9 +162,14 @@ public function callback(Request $request)
         $order = Order::where('checkout_request_id', $checkoutRequestID)->first();
 
         if ($order) {
-            $order->payment_status = 'paid';
-            $order->status = 'processing';
-            $order->save();
+            // Use the notification method to update payment status and send notification
+            $order->updatePaymentStatus('paid');
+            $order->updateStatus('processing');
+
+            // Update invoice status to paid if exists
+            if ($order->invoice) {
+                $order->invoice->update(['status' => 'paid']);
+            }
         }
     }
 }

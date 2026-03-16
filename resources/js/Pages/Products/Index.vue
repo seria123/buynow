@@ -366,15 +366,16 @@ function goToWishlist(product) {
                                             </div>
                                         </div>
 
-                                        <!-- Add to Cart Button -->
-                                       <button @click="handleAddToCart(product.id)"
-                                            class="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold py-3 shadow-lg shadow-yellow-500/30 hover:shadow-yellow-600/40 transition-all hover:scale-[1.02] active:scale-[0.98]">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                            </svg>
-                                            Add to Cart
-                                        </button>
+                                      <button
+  @click="addToCart(product.slug, 1, product.default_variant?.id)"
+  class="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold py-3 shadow-lg shadow-yellow-500/30 hover:shadow-yellow-600/40 transition-all hover:scale-[1.02] active:scale-[0.98]">
+  
+  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+  </svg>
+  Add to Cart
+</button>
 
                                         
   

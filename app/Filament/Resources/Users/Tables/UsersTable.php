@@ -79,6 +79,13 @@ class UsersTable
                     ->tooltip(fn ($record): string => $record->roles->pluck('name')->join(', ') ?: 'No roles assigned')
                     ->searchable(),
 
+                TextColumn::make('customerGroup.name')
+                    ->label('Customer Group')
+                    ->badge()
+                    ->color('success')
+                    ->icon('heroicon-o-user-group')
+                    ->placeholder('—'),
+
                 TextColumn::make('roles')
                     ->label('Roles Count')
                     ->formatStateUsing(fn ($record) => $record->roles->count())
