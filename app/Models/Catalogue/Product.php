@@ -4,6 +4,7 @@ namespace App\Models\Catalogue;
 
 use App\Enums\ProductStatus;
 use App\Models\User;
+use App\Models\Inventory\InventorySource;
 use App\Notifications\ProductApprovalRequestNotification;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -271,5 +272,51 @@ public function ratings()
 public function comments()
 {
     return $this->hasMany(ProductComment::class);
+}
+
+/**
+ * Get the inventory sources associated with this product.
+ */
+public function inventorySources()
+{
+    return $this->belongsToMany(InventorySource::class, 'product_inventory_source')
+        ->withPivot('quantity', 'reserved_quantity')
+        ->withTimestamps();
+}
+
+/**
+ * Get total stock from all inventory sources.
+ */
+public function getInventoryStock(): int
+{
+    return $this->inventorySources()
+        ->get()
+        ->sum(fn($source) => $source->pivot->quantity - $source->pivot->reserved_quantity);
+}
+
+/**
+ * Get available stock from all inventory sources.
+ */
+public function getAvailableStock(): int
+{
+    return $this->inventorySources()
+        ->get()
+        ->sum(fn($source) => $source->pivot->quantity - $source->pivot->reserved_quantity);
+}
+
+/**
+ * Check if product is low on stock.
+ */
+public function isLowStock(): bool
+{
+    return $this->getAvailableStock() <= ($this->low_stock_threshold ?? 10);
+}
+
+/**
+ * Check if product is out of stock.
+ */
+public function isOutOfStock(): bool
+{
+    return $this->getAvailableStock() <= 0;
 }
 }

@@ -7,13 +7,19 @@ const cartCount = ref(0);
 const isLoggedIn = ref(false);
 const isLoading = ref(false);
 
+// Promo code state
+const appliedPromo = ref(null);
+const promoDiscount = ref(0);
+
 const DEBUG_CART = true;
 
 // Computed total amount
 const cartTotal = computed(() => {
-  return parseFloat(
+  const total = parseFloat(
     cart.value.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0).toFixed(2)
   );
+  // Apply promo discount if any
+  return Math.max(0, total - promoDiscount.value);
 });
 
 // -----------------------------
@@ -74,9 +80,20 @@ const loadCart = async () => {
     const data = await res.json();
     cart.value = data.cart || [];
     cartCount.value = data.cart_count || 0;
+    
+    // Load promo from session if available
+    if (data.applied_promo) {
+      appliedPromo.value = data.applied_promo;
+      promoDiscount.value = data.promo_discount || 0;
+    } else {
+      appliedPromo.value = null;
+      promoDiscount.value = 0;
+    }
   } catch {
     cart.value = [];
     cartCount.value = 0;
+    appliedPromo.value = null;
+    promoDiscount.value = 0;
   }
 };
 
@@ -169,6 +186,8 @@ export const useCart = () => ({
   cartTotal,
   isLoggedIn,
   isLoading,
+  appliedPromo,
+  promoDiscount,
   loadCart,
   checkAuthStatus,
   addToCart,

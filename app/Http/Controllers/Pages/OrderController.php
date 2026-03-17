@@ -73,8 +73,15 @@ class OrderController extends Controller
         return redirect()->back()->with('error', 'Your cart is empty.');
     }
 
+    // Get applied promo from session
+    $appliedPromo = $request->session()->get('applied_promo');
+    $promoDiscount = $request->session()->get('promo_discount', 0);
+
     // Group cart items by store_id
     $stores = $cartItems->groupBy(fn($item) => $item->product->store_id);
+
+    // Calculate total cart value for promo proportion calculation
+    $totalCartValue = $cartItems->sum(fn($item) => $item->product->price * $item->quantity);
 
     foreach ($stores as $storeId => $itemsForStore) {
         // Create order for this store
@@ -109,8 +116,13 @@ class OrderController extends Controller
 
         // Create invoice for the order
         $orderItemsTotal = $order->orderItems->sum('subtotal');
-        $taxAmount = $orderItemsTotal * 0.16; // 16% VAT
-        $totalAmount = $orderItemsTotal + $taxAmount;
+        
+        // Apply promo discount proportionally to each order
+        $orderProportion = $totalCartValue > 0 ? $orderItemsTotal / $totalCartValue : 0;
+        $orderPromoDiscount = $promoDiscount * $orderProportion;
+        
+        $taxAmount = ($orderItemsTotal - $orderPromoDiscount) * 0.16; // 16% VAT
+        $totalAmount = max(0, ($orderItemsTotal - $orderPromoDiscount) + $taxAmount);
 
         Invoice::create([
             'order_id' => $order->id,
@@ -124,6 +136,10 @@ class OrderController extends Controller
 
     // Clear the cart
     $user->cartItems()->delete();
+
+    // Clear promo from session
+    $request->session()->forget('applied_promo');
+    $request->session()->forget('promo_discount');
 
     return redirect()->route('orders.index')->with('success', 'Orders placed successfully!');
 }

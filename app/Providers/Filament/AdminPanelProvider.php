@@ -2,9 +2,12 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\BulkData;
 use App\Filament\Pages\Settings;
 use App\Filament\Resources\RefundResource;
 use App\Filament\Resources\PromotionResource;
+use App\Filament\Resources\InventorySources\InventorySourceResource;
+use App\Filament\Widgets\LowStockProductsWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -44,11 +47,13 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
+                BulkData::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
+                LowStockProductsWidget::class,
             ])
             ->databaseNotifications()
             ->userMenuItems([
@@ -74,6 +79,10 @@ class AdminPanelProvider extends PanelProvider
                     ->url(fn (): string => route('filament.admin.resources.promotions.index'))
                     ->icon('heroicon-o-tag')
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.promotions.*')),
+                NavigationItem::make('Inventory Sources')
+                    ->url(fn (): string => route('filament.admin.resources.inventory-sources.index'))
+                    ->icon('heroicon-o-building-office-2')
+                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.inventory-sources.*')),
             ])
             ->middleware([
                 EncryptCookies::class,

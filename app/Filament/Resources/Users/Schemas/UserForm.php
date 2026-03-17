@@ -7,6 +7,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -64,6 +65,27 @@ class UserForm
                             ->options(fn () => CustomerGroup::active()->pluck('name', 'id'))
                             ->searchable()
                             ->helperText('Leave empty for regular customers without group discounts.'),
+                    ]),
+                Section::make('Marketing Preferences')
+                    ->description('Manage marketing communication settings.')
+                    ->icon('heroicon-o-envelope-open')
+                    ->collapsible()
+                    ->collapsed()
+                    ->schema([
+                        Toggle::make('marketing_opt_in')
+                            ->label('Receive Marketing Emails')
+                            ->onIcon('heroicon-o-check')
+                            ->offIcon('heroicon-o-x-mark')
+                            ->onColor('success')
+                            ->offColor('danger')
+                            ->helperText('Enable to receive promotional offers and newsletters.')
+                            ->afterStateUpdated(function ($state, $record) {
+                                if ($record) {
+                                    $record->update([
+                                        'marketing_opt_in_at' => $state ? now() : null,
+                                    ]);
+                                }
+                            }),
                     ]),
                 Section::make('Security')
                     ->description('Manage authentication details and critical security milestones.')

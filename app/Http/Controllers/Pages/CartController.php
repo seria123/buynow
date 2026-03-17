@@ -38,10 +38,16 @@ class CartController extends Controller
 
         $cartCount = $cart->sum('quantity');
 
+        // Get applied promo from session
+        $appliedPromo = $request->session()->get('applied_promo');
+        $promoDiscount = $request->session()->get('promo_discount', 0);
+
         return response()->json([
             'cart' => $cart,
             'cart_count' => $cartCount,
             'logged_in' => Auth::check(),
+            'applied_promo' => $appliedPromo,
+            'promo_discount' => $promoDiscount,
         ]);
     }
 
@@ -162,7 +168,61 @@ $productName = $variant?->name ?? $product->name;
             $request->session()->forget('cart');
         }
 
+        // Also clear promo
+        $request->session()->forget('applied_promo');
+        $request->session()->forget('promo_discount');
+
         return $this->index($request);
+    }
+
+    // -----------------------------
+    // Apply promo code
+    // -----------------------------
+    public function applyPromo(Request $request)
+    {
+        $request->validate([
+            'code' => 'required|string|max:50',
+            'order_total' => 'required|numeric|min:0',
+        ]);
+
+        $promoCode = $request->input('code');
+        $orderTotal = $request->input('order_total');
+
+        // Use the promotion service to validate and apply
+        $promotionService = app(\App\Services\PromotionService::class);
+        $result = $promotionService->applyPromoCode($promoCode, $orderTotal);
+
+        if ($result['valid']) {
+            // Store in session
+            $request->session()->put('applied_promo', $result['promotion_code']);
+            $request->session()->put('promo_discount', $result['discount_amount']);
+
+            return response()->json([
+                'valid' => true,
+                'message' => 'Promo code applied successfully',
+                'promotion_code' => $result['promotion_code'],
+                'discount_amount' => $result['discount_amount'],
+            ]);
+        }
+
+        return response()->json([
+            'valid' => false,
+            'message' => $result['message'] ?? 'Invalid promo code',
+        ], 422);
+    }
+
+    // -----------------------------
+    // Remove promo code
+    // -----------------------------
+    public function removePromo(Request $request)
+    {
+        $request->session()->forget('applied_promo');
+        $request->session()->forget('promo_discount');
+
+        return response()->json([
+            'valid' => true,
+            'message' => 'Promo code removed',
+        ]);
     }
 
     // -----------------------------

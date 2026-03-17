@@ -129,6 +129,19 @@ class UsersTable
                         ? 'Two-factor authentication enabled on '.$record->two_factor_confirmed_at?->format('M d, Y H:i')
                         : 'Two-factor authentication not enabled'),
 
+                IconColumn::make('marketing_opt_in')
+                    ->label('Marketing')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('danger')
+                    ->alignCenter()
+                    ->sortable()
+                    ->tooltip(fn ($state, $record): string => $state
+                        ? 'Marketing opt-in on '.$record->marketing_opt_in_at?->format('M d, Y H:i')
+                        : 'Marketing opt-in disabled'),
+
                 TextColumn::make('social_login')
                     ->label('Social Login')
                     ->formatStateUsing(function ($record) {
@@ -206,6 +219,12 @@ class UsersTable
                     ->placeholder('All users')
                     ->trueLabel('2FA Enabled')
                     ->falseLabel('2FA Disabled'),
+
+                TernaryFilter::make('marketing_opt_in')
+                    ->label('Marketing Opt-in')
+                    ->placeholder('All users')
+                    ->trueLabel('Opted In')
+                    ->falseLabel('Opted Out'),
 
                 SelectFilter::make('has_social_login')
                     ->label('Social Login')

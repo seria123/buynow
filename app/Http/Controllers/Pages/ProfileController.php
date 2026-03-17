@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Pages;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 
 
 use Illuminate\Http\Request;
@@ -43,27 +42,41 @@ class ProfileController extends Controller
             'name' => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:users,username,' . $user->id,
             'email' => 'required|email|max:255|unique:users,email,' . $user->id,
-           'phone_number' => 'nullable|string|digits_between:10,15',
+            'phone' => 'nullable|string|min:10|max:20',
             'avatar' => 'nullable|image|max:2048', // max 2MB
         ]);
 
-        // Handle avatar upload
+        // Handle avatar upload via Spatie Media Library
         if ($request->hasFile('avatar')) {
-            // Delete old avatar if it exists
-            if ($user->avatar) {
-                Storage::delete($user->avatar);
-            }
+            try {
+                // Delete old avatar if it exists
+                $media = $user->getFirstMedia('avatar');
+                if ($media && $media->exists) {
+                    $user->clearMediaCollection('avatar');
+                }
 
-            // Store new avatar
-            $path = $request->file('avatar')->store('avatars', 'public');
-            $validated['avatar'] = $path;
+                // Add new avatar media
+                $user->addMediaFromRequest('avatar')
+                    ->toMediaCollection('avatar');
+            } catch (\Exception $e) {
+                // Log error but continue with other updates
+                \Log::error('Avatar upload error: ' . $e->getMessage());
+            }
         }
 
-        // Update user
-        $user->update($validated);
-        $user->save();
+        // Update user fields (excluding avatar - handled by Spatie)
+        $user->update([
+            'name' => $validated['name'],
+            'username' => $validated['username'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+        ]);
 
-        return redirect()->route('profile.edit')->with('success', 'Profile updated successfully!');
+        // Refresh the user to get latest data including avatar
+        $user->refresh();
+
+        // Redirect to overview page
+        return to_route('profile.index');
     }
     public function updatePassword(Request $request)
 {

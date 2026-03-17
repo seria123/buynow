@@ -10,7 +10,7 @@ import { router } from '@inertiajs/vue3';
 import "vue3-toastify/dist/index.css";
 
 // Use the cart composable
-const { cart, cartCount, cartTotal, isLoading, loadCart, addToCart, removeFromCart, clearCart, checkout } = useCart();
+const { cart, cartCount, cartTotal, isLoading, loadCart, addToCart, removeFromCart, clearCart, checkout, appliedPromo, promoDiscount } = useCart();
 const loadingCheckout = ref(false);
 
 // Load cart when page mounts
@@ -46,6 +46,72 @@ const handleCheckout = async () => {
 // Continue shopping button handler
 const continueShopping = () => {
     Inertia.visit('/products');
+};
+
+// Promo code handling
+const promoCode = ref('');
+const promoError = ref('');
+const promoSuccess = ref('');
+const applyingPromo = ref(false);
+
+// Use appliedPromo from cart composable
+
+const applyPromoCode = async () => {
+    if (!promoCode.value.trim()) return;
+    
+    applyingPromo.value = true;
+    promoError.value = '';
+    promoSuccess.value = '';
+    
+    try {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+        const response = await fetch('/cart/apply-promo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({
+                code: promoCode.value.trim().toUpperCase(),
+                order_total: cartTotal.value + promoDiscount.value
+            }),
+            credentials: 'same-origin'
+        });
+        
+        const data = await response.json();
+        
+        if (data.valid) {
+            promoSuccess.value = `Promo code applied! You save KSh ${data.discount_amount}`;
+            // Load cart to get updated promo info from session
+            await loadCart();
+        } else {
+            promoError.value = data.message || 'Invalid promo code';
+        }
+    } catch (e) {
+        promoError.value = 'Failed to apply promo code';
+    } finally {
+        applyingPromo.value = false;
+    }
+};
+
+const removePromoCode = async () => {
+    try {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+        await fetch('/cart/remove-promo', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin'
+        });
+        promoCode.value = '';
+        promoSuccess.value = '';
+        await loadCart();
+    } catch (e) {
+        console.error('Failed to remove promo:', e);
+    }
 };
 </script>
 
@@ -90,20 +156,54 @@ const continueShopping = () => {
               <button @click="clearAll" :disabled="isLoading" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 disabled:opacity-50">
                 {{ isLoading ? 'Loading...' : 'Clear Cart' }}
               </button>
-             <button @click="router.post(route('checkout'))" class="bg-yellow-500 text-white px-4 py-2 rounded">
-  Checkout
-</button>
+              <button @click="router.post(route('checkout'))" class="bg-yellow-500 text-white px-4 py-2 rounded">
+                Checkout
+              </button>
+            </div>
+          </div>
+
+          <!-- Promo Code Section -->
+          <div v-if="!appliedPromo" class="mt-4 bg-white dark:bg-zinc-800 p-4 rounded shadow">
+            <h3 class="font-semibold mb-2">Have a promo code?</h3>
+            <div class="flex gap-2">
+              <input 
+                v-model="promoCode"
+                type="text" 
+                placeholder="Enter promo code"
+                class="flex-1 px-4 py-2 border border-gray-300 dark:border-zinc-600 rounded-lg dark:bg-zinc-700"
+                @keyup.enter="applyPromoCode"
+              >
+              <button 
+                @click="applyPromoCode" 
+                :disabled="applyingPromo || !promoCode.trim()"
+                class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 disabled:opacity-50"
+              >
+                {{ applyingPromo ? 'Applying...' : 'Apply' }}
+              </button>
+            </div>
+            <p v-if="promoError" class="text-red-500 text-sm mt-2">{{ promoError }}</p>
+            <p v-if="promoSuccess" class="text-green-500 text-sm mt-2">{{ promoSuccess }}</p>
+          </div>
+          <div v-else class="mt-4 bg-green-50 dark:bg-green-900/20 p-4 rounded border border-green-200 dark:border-green-800">
+            <div class="flex justify-between items-center">
+              <div>
+                <p class="text-green-700 dark:text-green-400 font-semibold">Promo code applied!</p>
+                <p class="text-sm text-green-600 dark:text-green-500">{{ appliedPromo }}</p>
+              </div>
+              <button @click="removePromoCode" class="text-red-500 hover:text-red-700 text-sm">
+                Remove
+              </button>
             </div>
           </div>
         </div>
       </div>
+      
       <!-- Continue Shopping button below -->
- <div class="mt-2">
-  <button @click="continueShopping" class="text-gray px-4 py-2 rounded hover:bg-gray-200 dark:hover:bg-zinc-700">
-    Continue Shopping >>
-  </button>
-</div>
-
+      <div class="mt-2 container mx-auto p-4">
+        <button @click="continueShopping" class="text-gray px-4 py-2 rounded hover:bg-gray-200 dark:hover:bg-zinc-700">
+          Continue Shopping >>
+        </button>
+      </div>
 
     </ProfileLayout>
   </MainLayout>

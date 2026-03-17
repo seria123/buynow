@@ -80,6 +80,24 @@ class UserInfolist
                             ->helperText(fn (?Carbon $state): ?string => $state ? $state->toDayDateTimeString() : null)
                             ->placeholder('-'),
                     ]),
+                Section::make('Marketing Preferences')
+                    ->description('Marketing communication settings.')
+                    ->icon('heroicon-o-envelope-open')
+                    ->columns(2)
+                    ->collapsible()
+                    ->collapsed()
+                    ->schema([
+                        TextEntry::make('marketing_opt_in')
+                            ->label('Marketing Emails')
+                            ->badge()
+                            ->formatStateUsing(fn (?bool $state): string => $state ? 'Opted In' : 'Opted Out')
+                            ->color(fn (?bool $state): string => $state ? 'success' : 'danger')
+                            ->placeholder('Not set'),
+                        TextEntry::make('marketing_opt_in_at')
+                            ->label('Opt-in Date')
+                            ->since()
+                            ->placeholder('Never'),
+                    ]),
                 Section::make('Connected Accounts')
                     ->columns(2)
                     ->collapsible()

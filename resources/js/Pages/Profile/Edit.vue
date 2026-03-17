@@ -5,7 +5,7 @@ import ProfileLayout from '../Layouts/ProfileLayout.vue';
 import MainLayout from '../Layouts/MainLayout.vue';
 
 const page = usePage();
-const user = page.props.auth?.user;
+const user = page.props.user || page.props.auth?.user;
 
 // --- STYLE CLASSES ---
 const labelStyle = 'block text-sm font-semibold text-gray-900 dark:text-gray-300 mb-2';
@@ -60,8 +60,8 @@ const saveProfile = () => {
     onSuccess: () => {
       triggerToast('Profile updated successfully!')
       
-      // Use direct page redirect with cache-busting to ensure fresh data is loaded
-      window.location.href = '/profile/edit?t=' + Date.now();
+      // Redirect to overview page to see the updated profile
+      window.location.href = '/profile';
     },
 
     onError: (errors) => {

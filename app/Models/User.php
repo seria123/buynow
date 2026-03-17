@@ -47,6 +47,8 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia, Filamen
         'phone',
         'avatar',
         'customer_group_id',
+        'marketing_opt_in',
+        'marketing_opt_in_at',
     ];
 
     /**
@@ -69,6 +71,8 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia, Filamen
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'marketing_opt_in' => 'boolean',
+            'marketing_opt_in_at' => 'datetime',
         ];
     }
 
@@ -88,6 +92,42 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia, Filamen
         $this->addMediaCollection('avatar')
             ->singleFile()
             ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+    }
+
+    /**
+     * Opt in to marketing communications.
+     */
+    public function optInToMarketing(): self
+    {
+        $this->update([
+            'marketing_opt_in' => true,
+            'marketing_opt_in_at' => now(),
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * Opt out of marketing communications.
+     */
+    public function optOutOfMarketing(): self
+    {
+        $this->update([
+            'marketing_opt_in' => false,
+            'marketing_opt_in_at' => null,
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * Toggle marketing opt-in status.
+     */
+    public function toggleMarketingOptIn(): self
+    {
+        return $this->marketing_opt_in 
+            ? $this->optOutOfMarketing() 
+            : $this->optInToMarketing();
     }
 
     /**
@@ -144,6 +184,16 @@ public function wishlist()
 public function customerGroup()
 {
     return $this->belongsTo(CustomerGroup::class, 'customer_group_id');
+}
+
+/**
+ * Get the announcements received by this user
+ */
+public function announcements()
+{
+    return $this->belongsToMany(Announcement::class, 'announcement_recipients')
+        ->withPivot('sent_at', 'opened_at')
+        ->withTimestamps();
 }
 
 /**
@@ -256,4 +306,5 @@ public function getIsActiveAttribute(): bool
     }
     return $lastOrder->diffInDays(now()) <= 90;
 }
+
 }

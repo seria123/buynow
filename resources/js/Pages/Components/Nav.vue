@@ -22,7 +22,7 @@ let cartDropdownTimeout = null;
 
 
 const openDropdown = () => {
-    cancelDropdownCloseCart();
+    cancelDropdownCaseCart();
     isCartDropdownOpen.value = true;
     loadCart(); // refresh cart dynamically
 };
@@ -899,6 +899,26 @@ const handleLogout = () => {
                                             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
                                     <span class="font-medium">My Orders</span>
+                                    </Link>
+                                    <Link href="/stores"
+                                        class="flex items-center gap-3 py-3 px-4 text-gray-700 dark:text-gray-200 hover:text-yellow-400 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 group mb-2">
+                                    <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    <span class="font-medium">Stores</span>
+                                    </Link>
+                                    <Link href="/announcements"
+                                        class="flex items-center gap-3 py-3 px-4 text-gray-700 dark:text-gray-200 hover:text-yellow-400 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 group mb-2">
+                                    <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                    </svg>
+                                    <span class="font-medium">Announcements</span>
                                     </Link>
                                     <Link href="/profile/settings"
                                         class="flex items-center gap-3 py-3 px-4 text-gray-700 dark:text-gray-200 hover:text-yellow-400 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-all duration-300 group mb-2">

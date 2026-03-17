@@ -23,8 +23,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('orders', function (Blueprint $table) {
-            $table->dropForeign(['promotion_id']);
+       Schema::table('orders', function (Blueprint $table) {
+    if (Schema::hasColumn('orders', 'promotion_id')) 
+        $table->dropForeign(['promotion_id']);
             $table->dropColumn(['promotion_id', 'discount_amount', 'promotion_code']);
         });
     }

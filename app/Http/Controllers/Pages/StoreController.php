@@ -63,6 +63,11 @@ class StoreController extends Controller
     // Display a single store (public)
     public function show(Store $store)
     {
+        // Only show active stores to public users
+        if (!$store->is_active) {
+            abort(404);
+        }
+
         return Inertia::render('Stores/Show', [
             'store'   => $store,
             'isAdmin' => Auth::check() && Auth::user()->hasRole('admin'),

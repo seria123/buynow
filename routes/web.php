@@ -13,6 +13,8 @@ use App\Http\Controllers\Pages\SettingsController;
 use App\Http\Controllers\Pages\SupportController;
 use App\Http\Controllers\Pages\PaymentController;
 use App\Http\Controllers\Pages\PromotionController;
+use App\Http\Controllers\Pages\AnnouncementController;
+use App\Http\Controllers\Pages\PromotionPageController;
 
 
 use App\Http\Controllers\Pages\StoreController;
@@ -33,6 +35,14 @@ Route::get('/api/user', function (Request $request) {
 Route::get('/products', [ProductsController::class, 'index'])->name('products.index');
 
 Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');
+Route::get('/stores/{store}', [StoreController::class, 'show'])->name('stores.show');
+
+// Announcements routes
+Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
+Route::get('/announcements/{announcement}', [AnnouncementController::class, 'show'])->name('announcements.show');
+
+// Promotions page route
+Route::get('/promotions', [PromotionPageController::class, 'index'])->name('promotions.index');
 
 Route::get('/categories/all', function () {
     return redirect()->route('products.index');
@@ -102,6 +112,8 @@ Route::middleware('web')->group(function () {
     Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
     Route::post('/cart/remove/{productId}', [CartController::class, 'remove']);
     Route::post('/cart/clear', [CartController::class, 'clear']);
+    Route::post('/cart/apply-promo', [CartController::class, 'applyPromo']);
+    Route::post('/cart/remove-promo', [CartController::class, 'removePromo']);
 
     Route::middleware('auth')->group(function () {
         Route::post('/cart/checkout', [CartController::class, 'checkout']);
@@ -186,7 +198,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/products/{product:id}/comment', [ProductsController::class, 'storeComment']);
 });
 Route::prefix('admin')->group(function () {
-Route::get('/users/reports', [UserController::class, 'reports']);
+    // Admin routes can be managed through Filament
 });
 
 // Promotion routes

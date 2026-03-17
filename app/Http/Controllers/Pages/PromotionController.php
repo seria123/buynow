@@ -1,13 +1,15 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Pages;
 
+use App\Http\Controllers\Pages;
+use App\Http\Controllers;
 use App\Models\Sales\Promotion;
 use App\Services\PromotionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
-class PromotionController extends Controller
+class PromotionController extends \App\Http\Controllers\Controller
 {
     protected PromotionService $promotionService;
 

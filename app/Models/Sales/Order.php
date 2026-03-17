@@ -12,6 +12,7 @@ use App\Models\Sales\OrderItem;
 use Illuminate\Support\Str;
 use App\Models\Sales\Refund;
 use App\Models\User;
+use App\Services\InventoryService;
 
 class Order extends Model
 {
@@ -52,6 +53,7 @@ class Order extends Model
         static::created(function ($order) {
             $order->sendOrderPlacedNotification();
             $order->sendNewOrderAdminNotification();
+            $order->deductInventoryStock();
         });
     }
 
@@ -183,5 +185,19 @@ class Order extends Model
         $oldStatus = $this->status;
         $this->update(['status' => $newStatus]);
         $this->sendShipmentStatusNotification($oldStatus, $newStatus);
+    }
+
+    /**
+     * Deduct inventory stock for all items in the order.
+     */
+    public function deductInventoryStock(): void
+    {
+        $inventoryService = app(InventoryService::class);
+
+        foreach ($this->orderItems as $item) {
+            if ($item->product) {
+                $inventoryService->deductStockForOrder($item->product, $item->quantity);
+            }
+        }
     }
 }
