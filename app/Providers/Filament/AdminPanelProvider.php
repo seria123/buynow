@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Settings;
 use App\Filament\Resources\RefundResource;
+use App\Filament\Resources\PromotionResource;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -69,6 +70,10 @@ class AdminPanelProvider extends PanelProvider
                     ->url(fn (): string => route('filament.admin.resources.refunds.index'))
                     ->icon('heroicon-o-receipt-refund')
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.refunds.*')),
+                NavigationItem::make('Promotions')
+                    ->url(fn (): string => route('filament.admin.resources.promotions.index'))
+                    ->icon('heroicon-o-tag')
+                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.promotions.*')),
             ])
             ->middleware([
                 EncryptCookies::class,

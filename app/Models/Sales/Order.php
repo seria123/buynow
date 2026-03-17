@@ -30,6 +30,13 @@ class Order extends Model
         'payment_status',
         'payment_method',
         'return_status',
+        'promotion_id',
+        'discount_amount',
+        'promotion_code',
+    ];
+
+    protected $casts = [
+        'discount_amount' => 'decimal:2',
     ];
 
     protected static function boot()
@@ -76,6 +83,14 @@ class Order extends Model
     public function refunds()
     {
         return $this->hasMany(Refund::class, 'order_id', 'id');
+    }
+
+    /**
+     * Get the promotion applied to this order
+     */
+    public function promotion()
+    {
+        return $this->belongsTo(Promotion::class, 'promotion_id');
     }
 
     public function hasRefunds(): bool

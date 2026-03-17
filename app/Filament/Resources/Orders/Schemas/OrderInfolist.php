@@ -39,6 +39,19 @@ class OrderInfolist
                         ]),
                     ]),
 
+                Section::make('Promotion Applied')
+                    ->visible(fn ($record) => $record->promotion_code !== null)
+                    ->schema([
+                        Grid::make(3)->schema([
+                            TextEntry::make('promotion_code')->label('Promo Code')
+                                ->badge()
+                                ->color('info'),
+                            TextEntry::make('discount_amount')->label('Discount')
+                                ->money('KES'),
+                            TextEntry::make('promotion.name')->label('Promotion Name'),
+                        ]),
+                    ]),
+
                 Section::make('Customer')
                     ->schema([
                         Grid::make(2)->schema([

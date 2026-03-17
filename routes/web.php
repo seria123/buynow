@@ -12,6 +12,9 @@ use App\Http\Controllers\Pages\WishlistController;
 use App\Http\Controllers\Pages\SettingsController;
 use App\Http\Controllers\Pages\SupportController;
 use App\Http\Controllers\Pages\PaymentController;
+use App\Http\Controllers\Pages\PromotionController;
+
+
 use App\Http\Controllers\Pages\StoreController;
 use App\Http\Controllers\InvoiceController;
 use App\Models\Catalogue\Category;
@@ -171,14 +174,29 @@ Route::post('/mpesa/callback', [PaymentController::class, 'mpesaCallback']);
 Route::middleware(['auth'])->group(function () {
     Route::get('/support/messages', [SupportController::class, 'fetchMessages']);
     Route::post('/support/message', [SupportController::class, 'store']);
-});use App\Http\Controllers\Pages\MpesaController;
+});
 
 Route::post('/m-pesa/validation', [PaymentController::class, 'validation']);
 Route::post('/m-pesa/confirmation', [PaymentController::class, 'confirmation']);
 
 // Product ratings (requires auth)
 Route::middleware('auth')->group(function () {
-    Route::post('/products/{product:id}/rating', [\App\Http\Controllers\Pages\ProductsController::class, 'storeRating']);
-    Route::delete('/products/{product:id}/rating', [\App\Http\Controllers\Pages\ProductsController::class, 'deleteRating']);
-    Route::post('/products/{product:id}/comment', [\App\Http\Controllers\Pages\ProductsController::class, 'storeComment']);
+    Route::post('/products/{product:id}/rating', [ProductsController::class, 'storeRating']);
+    Route::delete('/products/{product:id}/rating', [ProductsController::class, 'deleteRating']);
+    Route::post('/products/{product:id}/comment', [ProductsController::class, 'storeComment']);
+});
+Route::prefix('admin')->group(function () {
+Route::get('/users/reports', [UserController::class, 'reports']);
+});
+
+// Promotion routes
+Route::prefix('api/promotions')->group(function () {
+    Route::get('/', [PromotionController::class, 'index']);
+    Route::get('/{id}', [PromotionController::class, 'show']);
+    Route::post('/', [PromotionController::class, 'store']);
+    Route::put('/{id}', [PromotionController::class, 'update']);
+    Route::delete('/{id}', [PromotionController::class, 'destroy']);
+    Route::post('/validate', [PromotionController::class, 'validate']);
+    Route::post('/apply', [PromotionController::class, 'apply']);
+    Route::post('/best-discount', [PromotionController::class, 'bestDiscount']);
 });
