@@ -19,7 +19,9 @@ class Refund extends Model
     protected $fillable = [
         'id',
         'order_id',
+        'transaction_id',
         'user_id',
+        'refunded_by',
         'amount',
         'original_amount',
         'reason',
@@ -27,11 +29,13 @@ class Refund extends Model
         'notes',
         'refund_type',
         'mpesa_transaction_id',
+        'processed_at',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'original_amount' => 'decimal:2',
+        'processed_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -115,6 +119,7 @@ class Refund extends Model
         $this->update([
             'status' => 'completed',
             'mpesa_transaction_id' => $mpesaTransactionId,
+            'processed_at' => now(),
         ]);
         $this->sendStatusNotification($oldStatus, 'completed');
     }
@@ -137,5 +142,35 @@ class Refund extends Model
             'notes' => $notes,
         ]);
         $this->sendStatusNotification($oldStatus, 'rejected');
+    }
+
+    /**
+     * Issue a refund for an order
+     */
+    public static function issueRefund(
+        Order $order,
+        float $amount,
+        string $reason,
+        string $refundType = 'partial',
+        ?string $transactionId = null
+    ): Refund {
+        $refund = self::create([
+            'order_id' => $order->id,
+            'transaction_id' => $transactionId,
+            'user_id' => $order->user_id,
+            'refunded_by' => auth()->id(),
+            'amount' => $amount,
+            'original_amount' => $order->total_amount,
+            'reason' => $reason,
+            'status' => 'pending',
+            'refund_type' => $refundType,
+        ]);
+
+        // Update order payment status if full refund
+        if ($refundType === 'full') {
+            $order->update(['payment_status' => 'refunded']);
+        }
+
+        return $refund;
     }
 }

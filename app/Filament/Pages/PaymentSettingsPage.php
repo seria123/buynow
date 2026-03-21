@@ -71,12 +71,14 @@ class PaymentSettingsPage extends Page implements HasForms
                             ->label('Consumer Key'),
                         TextInput::make('mpesa_consumer_secret')
                             ->label('Consumer Secret')
-                            ->password(),
+                            ->password()
+                            ->revealable(),
                         TextInput::make('mpesa_shortcode')
                             ->label('Shortcode'),
                         TextInput::make('mpesa_passkey')
                             ->label('Passkey')
-                            ->password(),
+                            ->password()
+                            ->revealable(),
                         TextInput::make('mpesa_callback_url')
                             ->label('Callback URL')
                             ->url(),
@@ -90,10 +92,12 @@ class PaymentSettingsPage extends Page implements HasForms
                             ->label('Publishable Key'),
                         TextInput::make('stripe_secret')
                             ->label('Secret Key')
-                            ->password(),
+                            ->password()
+                            ->revealable(),
                         TextInput::make('stripe_webhook_secret')
                             ->label('Webhook Secret')
-                            ->password(),
+                            ->password()
+                            ->revealable(),
                     ])->columns(2),
 
                 SectionComponent::make('PayPal Settings')
@@ -104,7 +108,8 @@ class PaymentSettingsPage extends Page implements HasForms
                             ->label('Client ID'),
                         TextInput::make('paypal_client_secret')
                             ->label('Client Secret')
-                            ->password(),
+                            ->password()
+                            ->revealable(),
                         Select::make('paypal_mode')
                             ->label('Mode')
                             ->options([

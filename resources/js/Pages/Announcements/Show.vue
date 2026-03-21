@@ -40,6 +40,12 @@ const formatDate = (date) => {
         minute: '2-digit',
     });
 };
+
+const stripHtml = (html) => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+};
 </script>
 
 <template>
@@ -80,7 +86,7 @@ const formatDate = (date) => {
 
                         <div class="prose dark:prose-invert max-w-none">
                             <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                                {{ announcement.content }}
+                                {{ stripHtml(announcement.content) }}
                             </p>
                         </div>
 

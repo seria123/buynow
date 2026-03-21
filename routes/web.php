@@ -111,6 +111,7 @@ Route::middleware('web')->group(function () {
     Route::get('/cart', [CartController::class, 'index']);
     Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
     Route::post('/cart/remove/{productId}', [CartController::class, 'remove']);
+    Route::post('/cart/update-quantity', [CartController::class, 'updateQuantity']);
     Route::post('/cart/clear', [CartController::class, 'clear']);
     Route::post('/cart/apply-promo', [CartController::class, 'applyPromo']);
     Route::post('/cart/remove-promo', [CartController::class, 'removePromo']);
@@ -212,3 +213,9 @@ Route::prefix('api/promotions')->group(function () {
     Route::post('/apply', [PromotionController::class, 'apply']);
     Route::post('/best-discount', [PromotionController::class, 'bestDiscount']);
 });
+
+// SEO Sitemap routes
+use App\Http\Controllers\Seo\SitemapController;
+Route::get('/sitemap.xml', [SitemapController::class, 'index']);
+Route::get('/sitemap-products.xml', [SitemapController::class, 'products']);
+Route::get('/sitemap-categories.xml', [SitemapController::class, 'categories']);

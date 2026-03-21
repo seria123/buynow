@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Catalogue\Category;
 use App\Models\Catalogue\Product;
 use App\Models\Catalogue\ProductVariant;
+use App\Models\Sales\Wishlist;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
@@ -52,6 +53,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => fn () => $request->user() ? $request->user()->load('media') : null,
             ],
             'categories' => fn () => $this->navigationCategories(),
+            'wishlist_count' => fn () => $this->getWishlistCount($request),
         ];
     }
 
@@ -76,6 +78,19 @@ class HandleInertiaRequests extends Middleware
             \Log::error('Error loading categories in HandleInertiaRequests: '.$e->getMessage());
 
             return [];
+        }
+    }
+
+    private function getWishlistCount(Request $request): int
+    {
+        if (!$request->user()) {
+            return 0;
+        }
+
+        try {
+            return Wishlist::where('user_id', $request->user()->id)->count();
+        } catch (\Exception $e) {
+            return 0;
         }
     }
 

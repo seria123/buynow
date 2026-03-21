@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Orders\Schemas;
 
 use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\BadgeEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Schema;
@@ -57,6 +58,35 @@ class OrderInfolist
                         Grid::make(2)->schema([
                             TextEntry::make('user.name')->label('Name'),
                             TextEntry::make('user.email')->label('Email'),
+                        ]),
+                    ]),
+
+                Section::make('Refund Information')
+                    ->visible(fn ($record) => $record->hasRefunds())
+                    ->schema([
+                        Grid::make(3)->schema([
+                            TextEntry::make('total_refunded')
+                                ->label('Total Refunded')
+                                ->money('KES')
+                                ->getStateUsing(fn ($record) => $record->total_refunded),
+                            BadgeEntry::make('refund_status')
+                                ->label('Refund Status')
+                                ->badge()
+                                ->color(fn ($record): string => match(true) {
+                                    $record->isFullyRefunded() => 'success',
+                                    $record->hasCompletedRefunds() => 'info',
+                                    $record->hasRefunds() => 'warning',
+                                    default => 'gray',
+                                })
+                                ->getStateUsing(fn ($record): string => match(true) {
+                                    $record->isFullyRefunded() => 'Fully Refunded',
+                                    $record->hasCompletedRefunds() => 'Partially Refunded',
+                                    $record->hasRefunds() => 'Refund in Progress',
+                                    default => 'No Refunds',
+                                }),
+                            TextEntry::make('refunds_count')
+                                ->label('Refund Count')
+                                ->getStateUsing(fn ($record) => $record->refunds()->count()),
                         ]),
                     ]),
             ]);

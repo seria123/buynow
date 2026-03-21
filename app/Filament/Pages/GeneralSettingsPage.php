@@ -71,13 +71,29 @@ class GeneralSettingsPage extends Page implements HasForms
 
                 SectionComponent::make('Currency & Locale')
                     ->schema([
-                        TextInput::make('currency')
+                        Select::make('currency')
                             ->label('Currency Code')
-                            ->placeholder('USD')
+                            ->options([
+                                'USD' => 'USD - US Dollar',
+                                'KES' => 'KES - Kenyan Shilling',
+                                'EUR' => 'EUR - Euro',
+                                'GBP' => 'GBP - British Pound',
+                                'UGX' => 'UGX - Ugandan Shilling',
+                                'TZS' => 'TZS - Tanzanian Shilling',
+                                'NGN' => 'NGN - Nigerian Naira',
+                                'ZAR' => 'ZAR - South African Rand',
+                                'GHS' => 'GHS - Ghanaian Cedi',
+                                'INR' => 'INR - Indian Rupee',
+                                'CNY' => 'CNY - Chinese Yuan',
+                                'JPY' => 'JPY - Japanese Yen',
+                                'AUD' => 'AUD - Australian Dollar',
+                                'CAD' => 'CAD - Canadian Dollar',
+                            ])
                             ->required(),
                         TextInput::make('currency_symbol')
                             ->label('Currency Symbol')
                             ->placeholder('$')
+                            ->helperText('Symbol used to display prices (e.g., $, €, KSh, £)')
                             ->required(),
                         Select::make('timezone')
                             ->label('Timezone')

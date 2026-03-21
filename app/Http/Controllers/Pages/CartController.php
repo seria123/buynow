@@ -25,6 +25,7 @@ class CartController extends Controller
                         ->get()
                         ->map(function ($item) {
                             return [
+                                'id' => $item->id,
                                 'product_id' => $item->product_id,
                                 'variant_id' => $item->variant_id,
                                 'name' => $item->product_name,
@@ -152,6 +153,47 @@ $productName = $variant?->name ?? $product->name;
             $cart = $request->session()->get('cart', []);
             $cart = array_filter($cart, fn($item) => $item['product_id'] != $productId);
             $request->session()->put('cart', array_values($cart));
+        }
+
+        return $this->index($request);
+    }
+
+    // -----------------------------
+    // Update item quantity in cart
+    // -----------------------------
+    public function updateQuantity(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|integer',
+            'quantity' => 'required|integer|min:1',
+            'variant_id' => 'nullable|integer',
+        ]);
+
+        $productId = $request->input('product_id');
+        $quantity = $request->input('quantity');
+        $variantId = $request->input('variant_id');
+
+        if (Auth::check()) {
+            $cartItem = Cart::where('user_id', Auth::id())
+                ->where('product_id', $productId)
+                ->where('variant_id', $variantId ?? null)
+                ->first();
+
+            if ($cartItem) {
+                $cartItem->quantity = $quantity;
+                $cartItem->save();
+            }
+        } else {
+            $cart = $request->session()->get('cart', []);
+            
+            foreach ($cart as &$item) {
+                if ($item['product_id'] == $productId && ($item['variant_id'] ?? null) == $variantId) {
+                    $item['quantity'] = $quantity;
+                    break;
+                }
+            }
+            
+            $request->session()->put('cart', $cart);
         }
 
         return $this->index($request);

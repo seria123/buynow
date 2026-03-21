@@ -149,7 +149,7 @@ const grandTotal = computed(() => itemsTotal.value + taxAmount.value + shippingF
           Payment: <span class="font-semibold">{{ orderState.payment_status }}</span>
         </div>
 
-        <!-- Refunds Section -->
+        <!-- Refunds Section - With Refunds -->
         <div v-if="hasRefunds" class="bg-white dark:bg-zinc-800 p-4 rounded shadow">
           <h2 class="font-bold text-lg mb-3 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -190,8 +190,23 @@ const grandTotal = computed(() => itemsTotal.value + taxAmount.value + shippingF
           </div>
         </div>
 
+        <!-- No Refunds Message -->
+        <div v-else class="bg-white dark:bg-zinc-800 p-4 rounded shadow">
+          <h2 class="font-bold text-lg mb-3 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Refund Information
+          </h2>
+          <p class="text-gray-500">No refunds have been issued for this order.</p>
+          <p v-if="orderState.payment_status === 'paid'" class="text-sm text-gray-400 mt-1">
+            If you believe you're owed a refund, please contact support.
+          </p>
+        </div>
+
         <!-- Items Table -->
         <div class="bg-white dark:bg-zinc-800 p-4 rounded shadow space-y-2">
+          <h2 class="font-bold text-lg mb-2">Order Items</h2>
           <div v-for="item in orderState.order_items" :key="item.id"
                class="flex justify-between items-center border-b last:border-b-0 pb-2">
             <div class="flex items-center gap-3">

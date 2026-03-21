@@ -52,6 +52,11 @@ class RefundResource extends Resource
                                 ->prefix('KES')
                                 ->numeric()
                                 ->required(),
+                            TextInput::make('original_amount')
+                                ->label('Original Amount')
+                                ->prefix('KES')
+                                ->numeric()
+                                ->disabled(),
                             Select::make('refund_type')
                                 ->label('Refund Type')
                                 ->options([
@@ -73,6 +78,22 @@ class RefundResource extends Resource
                                 ->required(),
                         ]),
                     ]),
+                Section::make('Transaction Information')
+                    ->schema([
+                        Grid::make(2)->schema([
+                            TextInput::make('transaction_id')
+                                ->label('Transaction ID')
+                                ->uuid(),
+                            TextInput::make('refunded_by')
+                                ->label('Refunded By')
+                                ->disabled(),
+                            TextInput::make('mpesa_transaction_id')
+                                ->label('M-Pesa Transaction ID'),
+                            TextInput::make('processed_at')
+                                ->label('Processed At')
+                                ->disabled(),
+                        ]),
+                    ]),
                 Section::make('Additional Information')
                     ->schema([
                         Textarea::make('reason')
@@ -81,9 +102,6 @@ class RefundResource extends Resource
                         Textarea::make('notes')
                             ->label('Admin Notes')
                             ->rows(3),
-                        TextInput::make('mpesa_transaction_id')
-                            ->label('M-Pesa Transaction ID')
-                            ->disabled(),
                     ]),
             ]);
     }

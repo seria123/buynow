@@ -40,6 +40,12 @@ const formatDate = (date) => {
         minute: '2-digit',
     });
 };
+
+const stripHtml = (html) => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+};
 </script>
 
 <template>
@@ -90,7 +96,7 @@ const formatDate = (date) => {
                                         {{ announcement.title }}
                                     </h2>
                                     <p class="text-gray-600 dark:text-gray-300 line-clamp-2">
-                                        {{ announcement.content }}
+                                        {{ stripHtml(announcement.content) }}
                                     </p>
                                 </div>
                                 <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

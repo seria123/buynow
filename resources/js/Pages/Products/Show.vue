@@ -14,6 +14,19 @@ const props = defineProps({
 
 const page = usePage();
 
+// JSON-LD from controller
+const jsonLd = computed(() => page.props.jsonLd);
+
+// Inject JSON-LD into head
+onMounted(() => {
+  if (jsonLd.value) {
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.textContent = JSON.stringify(jsonLd.value);
+    document.head.appendChild(script);
+  }
+});
+
 // Debug: Log props on mount
 onMounted(() => {
   console.log('Show.vue - page.props on mount:', toRaw(page.props));
@@ -482,7 +495,30 @@ const formatDate = (dateString) => {
 
 <template>
   <MainLayout>
-    <Head :title="product?.name ?? 'Product Details'" />
+    <Head>
+      <Title>{{ product?.name ?? 'Product Details' }} | Buynow</Title>
+      <meta name="description" :content="product?.short_description || product?.description || 'Buy ' + (product?.name || 'this product') + ' at Buynow Kenya. Best price with M-Pesa payment available.'" />
+      <meta name="keywords" :content="product?.name + ', ' + (product?.category?.name || '') + ', buy online, Kenya, electronics'" />
+      
+      <!-- Open Graph -->
+      <meta property="og:type" content="product" />
+      <meta property="og:title" :content="(product?.name || 'Product') + ' | Buynow'" />
+      <meta property="og:description" :content="product?.short_description || 'Buy ' + (product?.name || 'this product') + ' at Buynow'" />
+      <meta property="og:image" :content="product?.thumbnail_url || '/images/og-image.png'" />
+      <meta property="og:url" :content="$page.url" />
+      <meta property="product:price:amount" :content="String(currentPrice || 0)" />
+      <meta property="product:price:currency" content="KES" />
+      <meta property="product:availability" :content="(currentStock || 0) > 0 ? 'in stock' : 'out of stock'" />
+      
+      <!-- Twitter Card -->
+      <meta name="twitter:card" content="product" />
+      <meta name="twitter:title" :content="(product?.name || 'Product') + ' | Buynow'" />
+      <meta name="twitter:description" :content="product?.short_description || 'Buy ' + (product?.name || 'this product') + ' at Buynow'" />
+      <meta name="twitter:image" :content="product?.thumbnail_url || '/images/og-image.png'" />
+      
+      <!-- Canonical URL -->
+      <link rel="canonical" :content="$page.url" />
+    </Head>
 
     <div class="container mx-auto py-6 px-2 md:px-4">
       <!-- Back Button -->

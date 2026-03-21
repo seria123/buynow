@@ -18,8 +18,8 @@ class OrderController extends Controller
     // -----------------------------
   public function index()
 {
-    $orders = Order::with('orderItems.product')
-        ->where('user_id', auth()->id()) // ← make sure auth()->id() matches the current logged-in user
+    $orders = Order::with(['orderItems.product', 'refunds'])
+        ->where('user_id', auth()->id())
         ->orderBy('created_at', 'desc')
         ->get();
 
@@ -34,10 +34,13 @@ class OrderController extends Controller
     // -----------------------------
  public function show(Order $order)
  {
-   $order->load('orderItems.product');
+    // Ensure user owns the order
+    if ($order->user_id !== auth()->id()) {
+        abort(403, 'Unauthorized');
+    }
 
-   // Load refunds for the order
-   $order->load('refunds');
+    // Load relationships including refunds
+    $order->load(['orderItems.product', 'refunds']);
 
    $itemsTotal = $order->orderItems->sum(function ($item) {
        return (float) $item->subtotal;

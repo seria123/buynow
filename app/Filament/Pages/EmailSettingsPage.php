@@ -74,7 +74,8 @@ class EmailSettingsPage extends Page implements HasForms
                             ->label('SMTP Username'),
                         TextInput::make('password')
                             ->label('SMTP Password')
-                            ->password(),
+                            ->password()
+                            ->revealable(),
                         Select::make('encryption')
                             ->label('SMTP Encryption')
                             ->options([
@@ -100,7 +101,8 @@ class EmailSettingsPage extends Page implements HasForms
                             ->label('Mailgun Domain'),
                         TextInput::make('mailgun_secret')
                             ->label('Mailgun Secret')
-                            ->password(),
+                            ->password()
+                            ->revealable(),
                     ])->columns(2),
 
                 SectionComponent::make('AWS SES Settings')
@@ -109,7 +111,8 @@ class EmailSettingsPage extends Page implements HasForms
                             ->label('SES Access Key'),
                         TextInput::make('ses_secret')
                             ->label('SES Secret Key')
-                            ->password(),
+                            ->password()
+                            ->revealable(),
                         TextInput::make('ses_region')
                             ->label('SES Region')
                             ->placeholder('us-east-1'),

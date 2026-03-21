@@ -439,9 +439,35 @@ class ProductsController extends Controller
             'created_at' => $c->created_at,
         ])->toArray();
         
+        // Build JSON-LD structured data for SEO - with null safety
+        $stats = $product->stats ?? [];
+        $totalStock = is_array($stats) ? ($stats['total_stock'] ?? 0) : 0;
+        $jsonLd = [
+            '@context' => 'https://schema.org/',
+            '@type' => 'Product',
+            'name' => $product->name ?? 'Product',
+            'image' => !empty($product->thumbnail_url) ? url($product->thumbnail_url) : null,
+            'description' => $product->description ?? '',
+            'sku' => $product->sku ?? (string)$product->id,
+            'brand' => [
+                '@type' => 'Brand',
+                'name' => $product->brand?->name ?? 'Buynow',
+            ],
+            'offers' => [
+                '@type' => 'Offer',
+                'url' => route('products.show', $product->slug),
+                'priceCurrency' => 'KES',
+                'price' => $product->price ?? 0,
+                'availability' => ($totalStock ?? 0) > 0 
+                    ? 'https://schema.org/InStock' 
+                    : 'https://schema.org/OutOfStock',
+                'itemCondition' => 'https://schema.org/NewCondition',
+            ],
+        ];
+
         return Inertia::render('Products/Show', [
             'product' => $transformedProduct,
-        ]);
+        ])->with('jsonLd', $jsonLd);
     }
     
     /**

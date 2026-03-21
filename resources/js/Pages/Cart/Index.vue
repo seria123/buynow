@@ -10,7 +10,7 @@ import { router } from '@inertiajs/vue3';
 import "vue3-toastify/dist/index.css";
 
 // Use the cart composable
-const { cart, cartCount, cartTotal, isLoading, loadCart, addToCart, removeFromCart, clearCart, checkout, appliedPromo, promoDiscount } = useCart();
+const { cart, cartCount, cartTotal, isLoading, loadCart, addToCart, removeFromCart, updateCartQuantity, clearCart, checkout, appliedPromo, promoDiscount } = useCart();
 const loadingCheckout = ref(false);
 
 // Load cart when page mounts
@@ -20,8 +20,10 @@ onMounted(() => {
 
 // Increment/decrement quantity
 const updateQuantity = async (item, increment = true) => {
-    if (!increment && item.quantity <= 1) return;
-    await addToCart(item.product_id, increment ? 1 : -1);
+    const newQuantity = increment ? item.quantity + 1 : item.quantity - 1;
+    if (newQuantity < 1) return;
+    
+    await updateCartQuantity(item.product_id, newQuantity, item.variant_id);
 };
 
 // Remove a single item

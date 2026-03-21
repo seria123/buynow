@@ -3,11 +3,8 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { useCart } from '../../cart.js';
 
-
-
-
 const {cart, cartCount, cartTotal, loadCart } = useCart();
-const wishlistCount = computed(() => page.props.wishlist_count || 0);
+const wishlistCount = computed(() => usePage().props.wishlist_count || 0);
 const isCartDropdownOpen = ref(false);
 
 

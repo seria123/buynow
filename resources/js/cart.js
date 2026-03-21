@@ -141,6 +141,35 @@ const removeFromCart = async (productId) => {
   await loadCart();
 };
 
+// Update cart item quantity
+const updateCartQuantity = async (productId, quantity, variantId = null) => {
+  const csrf = await getCsrfToken();
+  if (!csrf) throw new Error('No CSRF token');
+
+  const payload = { product_id: productId, quantity };
+  if (variantId) payload.variant_id = variantId;
+
+  const res = await debugFetch('/cart/update-quantity', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': csrf,
+      'X-Requested-With': 'XMLHttpRequest',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Failed to update quantity' }));
+    console.error('[Cart] Update quantity failed:', error);
+    throw new Error(error.message || 'Failed to update quantity');
+  }
+
+  await loadCart();
+};
+
 const clearCart = async () => {
   const csrf = await getCsrfToken();
   await debugFetch('/cart/clear', {
@@ -192,6 +221,7 @@ export const useCart = () => ({
   checkAuthStatus,
   addToCart,
   removeFromCart,
+  updateCartQuantity,
   clearCart,
   checkout,
 });

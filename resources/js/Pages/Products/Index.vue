@@ -236,7 +236,15 @@ function goToWishlist(product) {
 
 <template>
 
-    <Head title="Products | Buynow" />
+    <Head>
+  <Title>Premium Electronics & Gadgets | Buynow Kenya</Title>
+  <meta name="description" content="Shop premium electronics, gadgets, smartphones, laptops, tablets and accessories in Kenya. Best prices, M-Pesa payment, fast delivery across Kenya." />
+  <meta name="keywords" content="electronics Kenya, gadgets Kenya, smartphones Kenya, laptops Kenya, buy online Kenya, M-Pesa payment, electronics store Nairobi" />
+  <meta property="og:title" content="Premium Electronics & Gadgets | Buynow Kenya" />
+  <meta property="og:description" content="Shop premium electronics, gadgets, smartphones, laptops and accessories at best prices in Kenya." />
+  <meta property="og:type" content="website" />
+  <link rel="canonical" href="/products" />
+</Head>
     <MainLayout>
         <div class="min-h-screen bg-gray-50 dark:bg-zinc-950 py-10 transition-colors duration-300">
             <div class="container mx-auto px-4 space-y-8">

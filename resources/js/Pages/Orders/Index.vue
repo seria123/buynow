@@ -120,6 +120,40 @@ async function requestReturn(order) {
     toast.error(err.response?.data?.message || err.message);
   }
 }
+
+// Get refund status class
+function getRefundStatusClass(refunds) {
+  if (!refunds || refunds.length === 0) return '';
+  const hasCompleted = refunds.some(r => r.status === 'completed');
+  const hasPending = refunds.some(r => r.status === 'pending' || r.status === 'processing');
+  const hasFailed = refunds.some(r => r.status === 'failed' || r.status === 'rejected');
+  
+  if (hasFailed) return 'text-red-600 font-semibold';
+  if (hasCompleted) return 'text-green-600 font-semibold';
+  if (hasPending) return 'text-yellow-600 font-semibold';
+  return '';
+}
+
+// Get refund status text
+function getRefundStatusText(refunds) {
+  if (!refunds || refunds.length === 0) return '';
+  const hasCompleted = refunds.some(r => r.status === 'completed');
+  const hasPending = refunds.some(r => r.status === 'pending' || r.status === 'processing');
+  const hasFailed = refunds.some(r => r.status === 'failed' || r.status === 'rejected');
+  
+  if (hasFailed) return 'Failed/Rejected';
+  if (hasCompleted) return 'Refunded';
+  if (hasPending) return 'In Progress';
+  return '';
+}
+
+// Get total refunded amount
+function getTotalRefunded(refunds) {
+  if (!refunds || refunds.length === 0) return 0;
+  return refunds
+    .filter(r => r.status === 'completed')
+    .reduce((sum, r) => sum + parseFloat(r.amount), 0);
+}
 </script>
 
 <template>
@@ -147,8 +181,14 @@ async function requestReturn(order) {
                 <div class="text-gray-500 text-sm">
                   Status: <span>{{ order.status }}</span> |
                   Payment: <span>{{ order.payment_status }}</span>
+                  <span v-if="order.refunds && order.refunds.length > 0"> |
+                    Refund: <span :class="getRefundStatusClass(order.refunds)">{{ getRefundStatusText(order.refunds) }}</span>
+                  </span>
                 </div>
                 <div>Total: KES {{ order.total_amount }}</div>
+                <div v-if="getTotalRefunded(order.refunds) > 0" class="text-green-600 text-sm">
+                  Refunded: KES {{ getTotalRefunded(order.refunds).toFixed(2) }}
+                </div>
               </div>
 
               <!-- Action buttons -->
