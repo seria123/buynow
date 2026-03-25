@@ -30,8 +30,13 @@ class OrderInfolist
                             TextEntry::make('payment_status')->label('Payment Status')->badge()
                                 ->color(fn (string $state): string => match ($state) {
                                     'paid'     => 'success',
-                                    'unpaid'   => 'danger',
-                                    'refunded' => 'warning',
+                                    'unpaid'   => 'warning',
+                                    'refunded' => 'info',
+                                    'pending'  => 'warning',
+                                    'processing' => 'info',
+                                    'failed'   => 'danger',
+                                    'cancelled' => 'danger',
+                                    'expired'  => 'secondary',
                                     default    => 'gray',
                                 }),
                             TextEntry::make('total_amount')->label('Total Amount')->money('KES'),
@@ -87,6 +92,61 @@ class OrderInfolist
                             TextEntry::make('refunds_count')
                                 ->label('Refund Count')
                                 ->getStateUsing(fn ($record) => $record->refunds()->count()),
+                        ]),
+                    ]),
+
+                Section::make('Transaction Information')
+                    ->schema([
+                        Grid::make(3)->schema([
+                            TextEntry::make('primaryTransaction.transaction_number')
+                                ->label('Transaction No.')
+                                ->copyable()
+                                ->placeholder('No transaction created yet')
+                                ->url(fn ($record) => $record->primaryTransaction ? route('filament.admin.resources.transactions.view', $record->primaryTransaction) : null),
+                            BadgeEntry::make('primaryTransaction.status')
+                                ->label('Transaction Status')
+                                ->badge()
+                                ->placeholder('No transaction')
+                                ->color(fn (string $state): string => match ($state) {
+                                    'pending' => 'warning',
+                                    'processing' => 'info',
+                                    'completed' => 'success',
+                                    'failed' => 'danger',
+                                    'cancelled' => 'secondary',
+                                    'refunded' => 'info',
+                                    'expired' => 'secondary',
+                                    default => 'gray',
+                                }),
+                            TextEntry::make('primaryTransaction.gateway')
+                                ->label('Gateway')
+                                ->placeholder('-'),
+                        ]),
+                        Grid::make(3)->schema([
+                            TextEntry::make('primaryTransaction.gateway_transaction_id')
+                                ->label('Gateway Transaction ID')
+                                ->copyable()
+                                ->placeholder('-'),
+                            TextEntry::make('primaryTransaction.mpesa_transaction_id')
+                                ->label('M-Pesa Transaction ID')
+                                ->copyable()
+                                ->placeholder('-')
+                                ->visible(fn ($record) => $record->primaryTransaction?->gateway === 'mpesa'),
+                            TextEntry::make('primaryTransaction.mpesa_phone_number')
+                                ->label('M-Pesa Phone')
+                                ->placeholder('-')
+                                ->visible(fn ($record) => $record->primaryTransaction?->gateway === 'mpesa'),
+                        ]),
+                        Grid::make(3)->schema([
+                            TextEntry::make('primaryTransaction.gateway_response_code')
+                                ->label('Response Code')
+                                ->placeholder('-'),
+                            TextEntry::make('primaryTransaction.gateway_response_message')
+                                ->label('Response Message')
+                                ->placeholder('-'),
+                            TextEntry::make('primaryTransaction.processed_at')
+                                ->label('Processed At')
+                                ->dateTime()
+                                ->placeholder('-'),
                         ]),
                     ]),
             ]);

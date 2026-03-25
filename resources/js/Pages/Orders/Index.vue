@@ -180,7 +180,11 @@ function getTotalRefunded(refunds) {
                 <div class="font-semibold text-lg">Order #{{ order.order_number }}</div>
                 <div class="text-gray-500 text-sm">
                   Status: <span>{{ order.status }}</span> |
-                  Payment: <span>{{ order.payment_status }}</span>
+                  Payment: <span :class="{
+                    'text-green-600 font-semibold': order.payment_status === 'paid',
+                    'text-red-600 font-semibold': order.payment_status === 'cancelled' || order.payment_status === 'failed',
+                    'text-yellow-600 font-semibold': order.payment_status === 'pending' || order.payment_status === 'unpaid',
+                  }">{{ order.payment_status }}</span>
                   <span v-if="order.refunds && order.refunds.length > 0"> |
                     Refund: <span :class="getRefundStatusClass(order.refunds)">{{ getRefundStatusText(order.refunds) }}</span>
                   </span>

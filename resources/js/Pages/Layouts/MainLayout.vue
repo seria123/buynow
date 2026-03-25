@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import Nav from '../Components/Nav.vue';
+import Footer from '../Components/Footer.vue';
 import SupportChat from '../Support/Chat.vue';
 import { useDarkMode } from '../../composables/useDarkMode';
 
@@ -23,6 +24,7 @@ const { isDark, toggleDarkMode } = useDarkMode();
     <div class="min-h-screen bg-white dark:bg-zinc-950 transition-colors duration-300">
         <Nav :isDark="isDark" @toggle-dark-mode="toggleDarkMode" />
         <slot />
+        <Footer />
     </div>
     
     <!-- Customer Support Chat -->

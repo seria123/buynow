@@ -181,6 +181,41 @@ public function callback(Request $request)
         $order = Order::where('checkout_request_id', $checkoutRequestID)->first();
 
         if ($order) {
+            // Extract M-Pesa details from callback
+            $callbackItems = $data['Body']['stkCallback']['CallbackMetadata']['Item'] ?? [];
+            $mpesaTransactionId = null;
+            $mpesaPhoneNumber = null;
+
+            foreach ($callbackItems as $item) {
+                if ($item['Name'] === 'MpesaReceiptNumber') {
+                    $mpesaTransactionId = $item['Value'];
+                }
+                if ($item['Name'] === 'PhoneNumber') {
+                    $mpesaPhoneNumber = $item['Value'];
+                }
+            }
+
+            // Create transaction record
+            \App\Models\Sales\Transaction::create([
+                'order_id' => $order->id,
+                'user_id' => $order->user_id,
+                'amount' => $order->total_amount,
+                'currency' => 'KES',
+                'type' => 'payment',
+                'status' => 'completed',
+                'payment_method' => 'mpesa',
+                'gateway' => 'mpesa',
+                'gateway_transaction_id' => $checkoutRequestID,
+                'mpesa_transaction_id' => $mpesaTransactionId,
+                'mpesa_phone_number' => $mpesaPhoneNumber,
+                'gateway_response_code' => (string) $resultCode,
+                'gateway_response_message' => 'Payment successful',
+                'gateway_response_data' => $data,
+                'customer_email' => $order->user?->email,
+                'customer_phone' => $mpesaPhoneNumber,
+                'processed_at' => now(),
+            ]);
+
             // Use the notification method to update payment status and send notification
             $order->updatePaymentStatus('paid');
             $order->updateStatus('processing');

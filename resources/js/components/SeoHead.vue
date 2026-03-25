@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 
 const props = defineProps({
   title: {
@@ -84,6 +84,16 @@ const jsonLd = computed(() => {
   
   return JSON.stringify(productData);
 });
+
+// Inject JSON-LD using onMounted to avoid Vue template warning
+onMounted(() => {
+  if (jsonLd.value) {
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.text = jsonLd.value;
+    document.head.appendChild(script);
+  }
+});
 </script>
 
 <template>
@@ -113,8 +123,5 @@ const jsonLd = computed(() => {
     <meta name="twitter:image" :content="fullImage" />
     <meta name="twitter:site" content="@buynow" />
     <meta name="twitter:creator" content="@buynow" />
-    
-    <!-- Product-specific Schema.org -->
-    <script v-if="jsonLd" type="application/ld+json">{{ jsonLd }}</script>
   </Head>
 </template>

@@ -53,8 +53,13 @@ class OrdersTable
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'paid'    => 'success',
-                        'unpaid'  => 'danger',
-                        'refunded' => 'warning',
+                        'unpaid'  => 'warning',
+                        'refunded' => 'info',
+                        'pending' => 'warning',
+                        'processing' => 'info',
+                        'failed' => 'danger',
+                        'cancelled' => 'danger',
+                        'expired' => 'secondary',
                         default   => 'gray',
                     }),
 
@@ -82,6 +87,11 @@ class OrdersTable
                         'paid'    => 'Paid',
                         'unpaid'  => 'Unpaid',
                         'refunded' => 'Refunded',
+                        'pending' => 'Pending',
+                        'processing' => 'Processing',
+                        'failed' => 'Failed',
+                        'cancelled' => 'Cancelled',
+                        'expired' => 'Expired',
                     ]),
             ])
             ->actions([
@@ -106,6 +116,29 @@ class OrdersTable
                         $record->update(['status' => $data['status']]);
                     })
                     ->successNotificationTitle('Order status updated'),
+
+                Action::make('updatePaymentStatus')
+                    ->label('Update Payment')
+                    ->icon('heroicon-o-credit-card')
+                    ->color('success')
+                    ->form([
+                        Select::make('payment_status')
+                            ->label('Payment Status')
+                            ->options([
+                                'paid'    => 'Paid',
+                                'unpaid'  => 'Unpaid',
+                                'pending' => 'Pending',
+                                'processing' => 'Processing',
+                                'refunded' => 'Refunded',
+                                'failed' => 'Failed',
+                                'cancelled' => 'Cancelled',
+                            ])
+                            ->required(),
+                    ])
+                    ->action(function ($record, array $data): void {
+                        $record->updatePaymentStatus($data['payment_status']);
+                    })
+                    ->successNotificationTitle('Payment status updated'),
             ])
             ->bulkActions([
                 BulkActionGroup::make([

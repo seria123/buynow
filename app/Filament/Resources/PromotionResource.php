@@ -19,7 +19,7 @@ class PromotionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTag;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Sales';
+    protected static string|\UnitEnum|null $navigationGroup = 'Campaigns';
 
     protected static ?string $recordTitleAttribute = 'name';
 

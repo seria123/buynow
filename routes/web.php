@@ -15,6 +15,7 @@ use App\Http\Controllers\Pages\PaymentController;
 use App\Http\Controllers\Pages\PromotionController;
 use App\Http\Controllers\Pages\AnnouncementController;
 use App\Http\Controllers\Pages\PromotionPageController;
+use App\Http\Controllers\Pages\WarrantyController;
 
 
 use App\Http\Controllers\Pages\StoreController;
@@ -26,6 +27,15 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
 Route::get('/', [PagesController::class, 'index']);
+
+// Returns & Refunds page
+Route::get('/returns', [PagesController::class, 'returns'])->name('returns');
+
+// Shipping Information page
+Route::get('/shipping', [PagesController::class, 'shipping'])->name('shipping');
+
+// FAQ page
+Route::get('/faq', [PagesController::class, 'faq'])->name('faq');
 
 // API route to check user authentication status
 Route::get('/api/user', function (Request $request) {
@@ -122,7 +132,11 @@ Route::middleware('web')->group(function () {
     });
 });
 
-// Order routes
+// Warranty routes
+Route::prefix('profile/warranties')->middleware(['auth'])->group(function () {
+    Route::get('/', [WarrantyController::class, 'index'])->name('warranties.index');
+    Route::get('/{warranty}', [WarrantyController::class, 'show'])->name('warranties.show');
+});
 Route::prefix('profile/orders')->middleware(['auth'])->group(function () {
     Route::get('/', [OrderController::class, 'index'])->name('orders.index');
     Route::get('/{order}', [OrderController::class, 'show'])->name('orders.show');
@@ -182,6 +196,7 @@ Route::middleware(['auth'])->group(function () {
 // Payment routes (M-Pesa Daraja)
 Route::post('/payments/{order}/mpesa', [PaymentController::class, 'mpesaPay']);
 Route::post('/mpesa/callback', [PaymentController::class, 'mpesaCallback']);
+Route::post('/api/mpesa/callback', [PaymentController::class, 'mpesaCallback']);
 
 // Support routes
 Route::middleware(['auth'])->group(function () {

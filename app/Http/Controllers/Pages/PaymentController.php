@@ -125,6 +125,9 @@ class PaymentController extends Controller
                 'checkout_request_id' => $responseJson['CheckoutRequestID'] ?? 'N/A'
             ]);
 
+            // Store checkout request ID in order for later reference
+            $order->update(['checkout_request_id' => $responseJson['CheckoutRequestID'] ?? null]);
+
             return response()->json([
                 'message' => 'STK Push initiated. Check your phone to complete payment.',
                 'stk_response' => $responseJson,
@@ -209,40 +212,129 @@ class PaymentController extends Controller
     }
 
     // -----------------------------
-    // M-Pesa Callback
+    // M-Pesa Callback (handles both success and cancellation)
     // -----------------------------
     public function mpesaCallback(Request $request)
     {
         $data = $request->all();
-        Log::info('M-Pesa callback received', $data);
+        
+        // Log EVERYTHING that comes in
+        Log::info('=== M-PESA CALLBACK RECEIVED ===', [
+            'all_data' => $data,
+            'full_url' => $request->fullUrl(),
+            'method' => $request->method(),
+            'headers' => $request->headers->all(),
+        ]);
+
+        // Also log to a separate file for easier debugging
+        Log::channel('single')->info('M-Pesa callback raw', $data);
 
         $checkoutRequestID = $data['Body']['stkCallback']['CheckoutRequestID'] ?? null;
         $resultCode = $data['Body']['stkCallback']['ResultCode'] ?? null;
 
+        Log::info('M-Pesa callback check', [
+            'checkoutRequestID' => $checkoutRequestID,
+            'resultCode' => $resultCode,
+            'is_success' => ($resultCode == 0),
+            'is_cancelled' => in_array($resultCode, [null, 'null', '', 1037, 1038, 1039, 9999]),
+        ]);
+
         if ($checkoutRequestID && $resultCode == 0) {
             $callbackItems = $data['Body']['stkCallback']['CallbackMetadata']['Item'] ?? [];
             $orderRef = null;
+            $mpesaTransactionId = null;
+            $mpesaPhoneNumber = null;
+
+            Log::info('M-Pesa callback - success case', [
+                'callbackItems' => $callbackItems,
+            ]);
 
             foreach ($callbackItems as $item) {
                 if ($item['Name'] === 'BillRefNumber') {
                     $orderRef = $item['Value'];
-                    break;
+                }
+                if ($item['Name'] === 'MpesaReceiptNumber') {
+                    $mpesaTransactionId = $item['Value'];
+                }
+                if ($item['Name'] === 'PhoneNumber') {
+                    $mpesaPhoneNumber = $item['Value'];
                 }
             }
 
             if ($orderRef) {
                 $order = Order::where('order_number', $orderRef)->first();
                 if ($order) {
+                    // Create transaction record
+                    $transaction = \App\Models\Sales\Transaction::create([
+                        'order_id' => $order->id,
+                        'user_id' => $order->user_id,
+                        'amount' => $order->total_amount,
+                        'currency' => 'KES',
+                        'type' => 'payment',
+                        'status' => 'completed',
+                        'payment_method' => 'mpesa',
+                        'gateway' => 'mpesa',
+                        'gateway_transaction_id' => $checkoutRequestID,
+                        'mpesa_transaction_id' => $mpesaTransactionId,
+                        'mpesa_phone_number' => $mpesaPhoneNumber,
+                        'gateway_response_code' => (string) $resultCode,
+                        'gateway_response_message' => 'Payment successful',
+                        'gateway_response_data' => $data,
+                        'customer_email' => $order->user?->email,
+                        'customer_phone' => $mpesaPhoneNumber,
+                        'processed_at' => now(),
+                    ]);
+
                     // Use the notification method to update payment status and send notification
                     $order->updatePaymentStatus('paid');
                     $order->updateStatus('processing');
                     $order->payment_method = 'mpesa';
                     $order->save();
-                    Log::info("Order {$order->id} marked as paid via M-Pesa");
+                    Log::info("Order {$order->id} marked as paid via M-Pesa. Transaction ID: {$transaction->id}");
                 }
             }
         } else {
             Log::warning('M-Pesa payment failed or canceled', ['data' => $data]);
+
+            // Handle cancelled/failed payments - find the order by checkout request ID
+            $checkoutRequestID = $data['Body']['stkCallback']['CheckoutRequestID'] ?? null;
+            $resultDesc = $data['Body']['stkCallback']['ResultDesc'] ?? 'Payment canceled or failed';
+            $resultCode = $data['Body']['stkCallback']['ResultCode'] ?? null;
+
+            Log::info('M-Pesa callback - cancelled/failed case', [
+                'checkoutRequestID' => $checkoutRequestID,
+                'resultCode' => $resultCode,
+                'resultDesc' => $resultDesc,
+            ]);
+
+            if ($checkoutRequestID) {
+                $order = Order::where('checkout_request_id', $checkoutRequestID)->first();
+                Log::info('Looking for order with checkout_request_id', ['checkout_request_id' => $checkoutRequestID, 'found' => $order ? 'yes' : 'no', 'order_id' => $order?->id]);
+                
+                if ($order) {
+                    // Create a failed transaction record
+                    \App\Models\Sales\Transaction::create([
+                        'order_id' => $order->id,
+                        'user_id' => $order->user_id,
+                        'amount' => $order->total_amount,
+                        'currency' => 'KES',
+                        'type' => 'payment',
+                        'status' => 'cancelled',
+                        'payment_method' => 'mpesa',
+                        'gateway' => 'mpesa',
+                        'gateway_transaction_id' => $checkoutRequestID,
+                        'gateway_response_code' => (string) $resultCode,
+                        'gateway_response_message' => $resultDesc,
+                        'gateway_response_data' => $data,
+                        'customer_email' => $order->user?->email,
+                        'customer_phone' => $order->user?->phone ?? null,
+                    ]);
+
+                    // Update order payment status
+                    $order->updatePaymentStatus('cancelled');
+                    Log::info("Order {$order->id} payment cancelled via M-Pesa");
+                }
+            }
         }
 
         return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);

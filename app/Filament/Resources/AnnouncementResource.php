@@ -20,7 +20,7 @@ class AnnouncementResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedMegaphone;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Marketing';
+    protected static string|\UnitEnum|null $navigationGroup = 'Campaigns';
 
     protected static ?string $recordTitleAttribute = 'title';
 

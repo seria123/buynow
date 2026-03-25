@@ -105,6 +105,11 @@ const clearFilters = () => {
 const buildQuery = (filters) => {
     const query = {};
 
+    // Handle search query
+    if (filters.search?.trim()) {
+        query.q = filters.search.trim();
+    }
+
     // Handle multiple categories - use categories[] array parameter
     if (filters.categories?.length) {
         filters.categories.forEach((categorySlug) => {

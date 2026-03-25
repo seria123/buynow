@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Sales\OrderItem;
 use Illuminate\Support\Str;
 use App\Models\Sales\Refund;
+use App\Models\Sales\Transaction;
 use App\Models\User;
 use App\Services\InventoryService;
 
@@ -26,6 +27,7 @@ class Order extends Model
         'id',
         'user_id',
         'order_number',
+        'checkout_request_id',
         'total_amount',
         'status',
         'payment_status',
@@ -85,6 +87,40 @@ class Order extends Model
     public function refunds()
     {
         return $this->hasMany(Refund::class, 'order_id', 'id');
+    }
+
+    /**
+     * Get all transactions for this order
+     */
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class, 'order_id', 'id');
+    }
+
+    /**
+     * Get the primary/first transaction for this order
+     */
+    public function primaryTransaction()
+    {
+        return $this->hasOne(Transaction::class, 'order_id', 'id')->latest();
+    }
+
+    /**
+     * Get the successful payment transaction for this order
+     */
+    public function successfulTransaction()
+    {
+        return $this->hasOne(Transaction::class, 'order_id', 'id')
+            ->whereIn('status', ['completed', 'refunded'])
+            ->latest();
+    }
+
+    /**
+     * Check if order has any successful transactions
+     */
+    public function hasSuccessfulTransaction(): bool
+    {
+        return $this->transactions()->successful()->exists();
     }
 
     /**

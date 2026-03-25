@@ -55,6 +55,22 @@ const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const dbCategories = computed(() => page.props.categories || []);
 
+// Search handler
+const handleSearch = () => {
+    if (searchQuery.value.trim()) {
+        const searchUrl = `/products?q=${encodeURIComponent(searchQuery.value.trim())}`;
+        router.visit(searchUrl);
+    }
+};
+
+// Handle Enter key in search input
+const handleSearchKeydown = (event) => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        handleSearch();
+    }
+};
+
 // Build categories array with "All Categories" option
 const categories = computed(() => {
     return [
@@ -397,6 +413,16 @@ const handleLogout = () => {
 </svg>
     <span>My Orders</span>
 </Link>
+<Link 
+  :href="route('warranties.index')" 
+  class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-gray-700/50 hover:text-yellow-400 dark:hover:text-yellow-400 transition-all duration-200 group"
+>
+  <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+  </svg>
+  <span>My Warranties</span>
+</Link>
                                         <Link href="/profile/settings"
                                             class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-yellow-50 dark:hover:bg-gray-700/50 hover:text-yellow-400 dark:hover:text-yellow-400 transition-all duration-200 group">
                                         <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none"
@@ -519,6 +545,7 @@ const handleLogout = () => {
                     <div
                         class="flex w-full bg-white/95 dark:bg-zinc-800/90 backdrop-blur-xl rounded-full shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden border border-gray-200/50 dark:border-zinc-700/50 hover:shadow-2xl hover:shadow-black/20 dark:hover:shadow-black/40 transition-all duration-300">
                         <input v-model="searchQuery" type="text" placeholder="Search for Products"
+                            @keydown="handleSearchKeydown"
                             class="flex-1 px-6 py-3.5 focus:outline-none text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent min-w-0" />
                         <div class="relative">
                             <button @click="showCategoryDropdown = !showCategoryDropdown"
@@ -550,7 +577,7 @@ const handleLogout = () => {
                                 </div>
                             </transition>
                         </div>
-                        <button
+                        <button @click="handleSearch"
                             class="px-6 py-3.5 bg-linear-to-r from-gray-900 to-black dark:from-yellow-400 dark:to-yellow-700 text-white hover:from-black hover:to-gray-900 dark:hover:from-yellow-700 dark:hover:to-yellow-800 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -694,8 +721,9 @@ const handleLogout = () => {
                     <div
                         class="flex bg-white/95 dark:bg-zinc-800/90 backdrop-blur-xl rounded-full shadow-xl overflow-hidden border border-gray-200/50 dark:border-zinc-700/50">
                         <input v-model="searchQuery" type="text" placeholder="Search for Products"
+                            @keydown="handleSearchKeydown"
                             class="flex-1 px-5 py-3 focus:outline-none text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-sm bg-transparent" />
-                        <button
+                        <button @click="handleSearch"
                             class="px-5 py-3 bg-linear-to-r from-gray-900 to-black dark:from-yellow-400 dark:to-yellow-700 text-white hover:from-black hover:to-gray-900 dark:hover:from-yellow-700 dark:hover:to-yellow-800 transition-all duration-300">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

@@ -7,6 +7,7 @@ use App\Filament\Pages\Settings;
 use App\Filament\Resources\RefundResource;
 use App\Filament\Resources\PromotionResource;
 use App\Filament\Resources\InventorySources\InventorySourceResource;
+use App\Filament\Resources\Transactions\TransactionResource;
 use App\Filament\Widgets\LowStockProductsWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -43,6 +44,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->resources([
                 RefundResource::class,
+                TransactionResource::class,
             ])
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
@@ -67,6 +69,10 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-cog-6-tooth'),
             ])
             ->navigationItems([
+                NavigationItem::make('Transactions')
+                    ->url(fn (): string => route('filament.admin.resources.transactions.index'))
+                    ->icon('heroicon-o-credit-card')
+                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.transactions.*')),
                 NavigationItem::make('Invoices')
                     ->url(fn (): string => route('admin.invoices.index'))
                     ->icon('heroicon-o-document-text')
@@ -83,6 +89,10 @@ class AdminPanelProvider extends PanelProvider
                     ->url(fn (): string => route('filament.admin.resources.inventory-sources.index'))
                     ->icon('heroicon-o-building-office-2')
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.inventory-sources.*')),
+                NavigationItem::make('Warranties')
+                    ->url(fn (): string => route('filament.admin.resources.warranties.index'))
+                    ->icon('heroicon-o-shield-check')
+                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.warranties.*')),
             ])
             ->middleware([
                 EncryptCookies::class,

@@ -138,6 +138,7 @@ class ProductsController extends Controller
     private function resolveFilters(Request $request): array
     {
         $filters = [
+            'search' => $request->input('q', ''),
             'categories' => [],
             'category_ids' => [],
             'brands' => [],
@@ -204,6 +205,21 @@ class ProductsController extends Controller
 
     private function applyFilters(Builder $query, array $filters): void
     {
+        // Apply search query if present
+        if (! empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function (Builder $q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhereHas('brand', function (Builder $brandQuery) use ($search) {
+                      $brandQuery->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('category', function (Builder $categoryQuery) use ($search) {
+                      $categoryQuery->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
         // Apply category filters with OR logic (products in any of the selected categories)
         if (! empty($filters['category_ids'])) {
             $query->whereIn('category_id', $filters['category_ids']);
@@ -364,6 +380,7 @@ class ProductsController extends Controller
     private function presentFilters(array $filters, array $priceRange, ?Category $category = null): array
     {
         return [
+            'search' => $filters['search'] ?? '',
             'categories' => $filters['categories'] ?? [],
             'brands' => $filters['brands'],
             'price' => [
