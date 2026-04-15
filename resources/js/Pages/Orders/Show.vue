@@ -16,6 +16,8 @@ const props = defineProps({
 // Reactive state
 const orderState = ref({ ...props.order });
 const summaryState = ref({ ...props.summary });
+const invoiceState = ref(props.invoice);
+const receiptUrl = ref(null);
 const showPaymentModal = ref(false);
 const isProcessing = ref(false);
 let pollInterval = null;
@@ -37,10 +39,28 @@ async function pollPaymentStatus() {
     const res = await axios.get(`/orders/${orderState.value.id}/status`);
     orderState.value.payment_status = res.data.payment_status;
     orderState.value.status = res.data.status;
+    
+    // Update invoice if returned from backend
+    if (res.data.invoice) {
+      invoiceState.value = res.data.invoice;
+    }
 
-    if (orderState.value.payment_status?.toLowerCase() === 'paid') {
+    // Update receipt URL if returned from backend
+    if (res.data.receipt_url) {
+      receiptUrl.value = res.data.receipt_url;
+    }
+
+    // Stop polling when payment is no longer pending (paid, cancelled, failed, etc.)
+    const paymentStatus = orderState.value.payment_status?.toLowerCase();
+    if (paymentStatus === 'paid' || paymentStatus === 'cancelled' || paymentStatus === 'failed' || paymentStatus === 'expired') {
       clearInterval(pollInterval);
-      toast.success(`Order #${orderState.value.order_number} is now paid!`);
+      if (paymentStatus === 'paid') {
+        toast.success(`Order #${orderState.value.order_number} is now paid!`);
+      } else if (paymentStatus === 'cancelled') {
+        toast.info(`Payment for order #${orderState.value.order_number} was cancelled.`);
+      } else if (paymentStatus === 'failed') {
+        toast.error(`Payment for order #${orderState.value.order_number} failed.`);
+      }
     }
   } catch (err) {
     console.error('Failed to fetch latest order status', err);
@@ -49,7 +69,8 @@ async function pollPaymentStatus() {
 
 // Start polling
 onMounted(() => {
-  if (orderState.value.payment_status?.toLowerCase() === 'pending') {
+  const paymentStatus = orderState.value.payment_status?.toLowerCase();
+  if (paymentStatus === 'pending' || paymentStatus === 'processing') {
     pollInterval = setInterval(pollPaymentStatus, 5000);
   }
 });
@@ -86,6 +107,88 @@ async function confirmPayment() {
   }
 }
 
+// Confirm payment received - try auto-check first, then manual if needed
+async function confirmPaymentReceived() {
+  if (!orderState.value.id) return;
+  
+  if (!confirm('Have you already completed the M-Pesa payment? This will try to confirm your payment.')) {
+    return;
+  }
+
+  isProcessing.value = true;
+  try {
+    // First try to check payment status automatically
+    const res = await axios.get(`/payments/${orderState.value.id}/check-status`);
+    
+    toast.success(res.data.message || 'Payment confirmed! Order is now paid.');
+    orderState.value.payment_status = res.data.payment_status;
+    orderState.value.status = res.data.status;
+    
+    // Update invoice if returned
+    if (res.data.invoice) {
+      invoiceState.value = res.data.invoice;
+    }
+    
+    // Update receipt URL if returned
+    if (res.data.receipt_url) {
+      receiptUrl.value = res.data.receipt_url;
+    }
+    
+    // Add transaction to the list if returned
+    if (res.data.transaction) {
+      if (!orderState.value.transactions) {
+        orderState.value.transactions = [];
+      }
+      orderState.value.transactions.push(res.data.transaction);
+    }
+    
+    // Stop polling since payment is now complete
+    if (pollInterval) {
+      clearInterval(pollInterval);
+    }
+  } catch (err) {
+    // If auto-check fails (e.g., no checkout_request_id), try manual recording
+    const errorMessage = err.response?.data?.message || err.message;
+    
+    // Check if it's a "no checkout request" error - then try manual recording
+    if (err.response?.status === 400 && errorMessage.includes('checkout request')) {
+      try {
+        const manualRes = await axios.post(`/payments/${orderState.value.id}/record-payment`);
+        toast.success(manualRes.data.message || 'Payment recorded successfully!');
+        orderState.value.payment_status = manualRes.data.payment_status;
+        orderState.value.status = manualRes.data.status;
+        
+        // Update invoice if returned
+        if (manualRes.data.invoice) {
+          invoiceState.value = manualRes.data.invoice;
+        }
+        
+        // Update receipt URL if returned
+        if (manualRes.data.receipt_url) {
+          receiptUrl.value = manualRes.data.receipt_url;
+        }
+        
+        if (manualRes.data.transaction) {
+          if (!orderState.value.transactions) {
+            orderState.value.transactions = [];
+          }
+          orderState.value.transactions.push(manualRes.data.transaction);
+        }
+        
+        if (pollInterval) {
+          clearInterval(pollInterval);
+        }
+      } catch (manualErr) {
+        toast.error(manualErr.response?.data?.message || manualErr.message);
+      }
+    } else {
+      toast.error(errorMessage);
+    }
+  } finally {
+    isProcessing.value = false;
+  }
+}
+
 // ----- Format date -----
 function formatDate(dateString) {
   const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -100,6 +203,20 @@ function getRefundStatusColor(status) {
     completed: 'bg-green-100 text-green-800',
     failed: 'bg-red-100 text-red-800',
     rejected: 'bg-red-100 text-red-800',
+  };
+  return colors[status] || 'bg-gray-100 text-gray-800';
+}
+
+// ----- Get transaction status color -----
+function getTransactionStatusColor(status) {
+  const colors = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    processing: 'bg-blue-100 text-blue-800',
+    completed: 'bg-green-100 text-green-800',
+    failed: 'bg-red-100 text-red-800',
+    cancelled: 'bg-red-100 text-red-800',
+    refunded: 'bg-purple-100 text-purple-800',
+    expired: 'bg-gray-100 text-gray-800',
   };
   return colors[status] || 'bg-gray-100 text-gray-800';
 }
@@ -147,6 +264,41 @@ const grandTotal = computed(() => itemsTotal.value + taxAmount.value + shippingF
           Placed on: {{ formatDate(orderState.created_at) }} <br>
           Status: <span class="font-semibold">{{ orderState.status }}</span> |
           Payment: <span class="font-semibold">{{ orderState.payment_status }}</span>
+        </div>
+
+        <!-- Transaction Info -->
+        <div v-if="orderState.transactions && orderState.transactions.length > 0" class="bg-white dark:bg-zinc-800 p-4 rounded shadow mb-4">
+          <h2 class="font-bold text-lg mb-3 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+            Transaction History
+          </h2>
+          <div v-for="txn in orderState.transactions" :key="txn.id" class="border rounded-lg p-3 mb-2">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="font-semibold">{{ txn.transaction_number }}</div>
+                <div class="text-sm text-gray-500">
+                  {{ txn.type === 'payment' ? 'Payment' : 'Refund' }} - {{ txn.gateway }}
+                </div>
+                <div v-if="txn.mpesa_transaction_id" class="text-sm text-gray-500">
+                  M-Pesa ID: {{ txn.mpesa_transaction_id }}
+                </div>
+              </div>
+              <div :class="getTransactionStatusColor(txn.status)" class="px-3 py-1 rounded-full text-sm font-medium">
+                {{ txn.status }}
+              </div>
+            </div>
+            <div class="text-sm text-gray-500 mt-1">
+              Amount: KES {{ parseFloat(txn.amount).toFixed(2) }}
+            </div>
+            <div v-if="txn.gateway_response_message" class="text-sm text-gray-500">
+              {{ txn.gateway_response_message }}
+            </div>
+          </div>
+        </div>
+        <div v-else class="bg-gray-100 dark:bg-zinc-700 p-4 rounded mb-4">
+          <p class="text-gray-500">No transaction history available.</p>
         </div>
 
         <!-- Refunds Section - With Refunds -->
@@ -260,8 +412,18 @@ const grandTotal = computed(() => itemsTotal.value + taxAmount.value + shippingF
           </button>
         </div>
 
+        <!-- Manual Payment Confirmation -->
+        <div v-if="['pending', 'unpaid'].includes(orderState.payment_status?.toLowerCase())" class="mt-4 bg-yellow-50 border border-yellow-200 p-4 rounded">
+          <p class="text-yellow-800 mb-2">Still pending payment? If you've already paid, click below to confirm:</p>
+          <button @click="confirmPaymentReceived"
+                  class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded"
+                  :disabled="isProcessing">
+            {{ isProcessing ? 'Confirming...' : 'I Have Already Paid' }}
+          </button>
+        </div>
+
         <!-- Invoice Button -->
-        <div v-if="invoice" class="mt-4">
+        <div v-if="invoiceState" class="mt-4">
           <a :href="route('orders.invoice.download', orderState.id)" 
              target="_blank"
              class="inline-flex items-center px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded gap-2">
@@ -270,6 +432,29 @@ const grandTotal = computed(() => itemsTotal.value + taxAmount.value + shippingF
             </svg>
             Download Invoice
           </a>
+        </div>
+
+        <!-- Receipt Buttons (only for paid orders) -->
+        <div v-if="orderState.payment_status?.toLowerCase() === 'paid'" class="mt-4 space-y-3">
+          <div class="flex flex-wrap gap-3">
+            <a :href="route('orders.receipt.view', orderState.id)" 
+               class="inline-flex items-center px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              View Receipt
+            </a>
+            <a :href="receiptUrl || route('orders.receipt.download', orderState.id)" 
+               target="_blank"
+               class="inline-flex items-center px-6 py-2 bg-green-700 hover:bg-green-800 text-white font-bold rounded gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Download Receipt PDF
+            </a>
+          </div>
+          <p class="text-sm text-gray-500">Receipt is available for paid orders only</p>
         </div>
 
         <!-- Payment Modal -->

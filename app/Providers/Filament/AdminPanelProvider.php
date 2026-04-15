@@ -45,6 +45,7 @@ class AdminPanelProvider extends PanelProvider
             ->resources([
                 RefundResource::class,
                 TransactionResource::class,
+                \App\Filament\Resources\AdResource\AdResource::class,
             ])
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
@@ -70,7 +71,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->navigationItems([
                 NavigationItem::make('Transactions')
-                    ->url(fn (): string => route('filament.admin.resources.transactions.index'))
+                    ->url(fn (): string => TransactionResource::getUrl('index', panel: 'admin'))
                     ->icon('heroicon-o-credit-card')
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.transactions.*')),
                 NavigationItem::make('Invoices')
@@ -78,21 +79,25 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-document-text')
                     ->isActiveWhen(fn (): bool => request()->routeIs('admin.invoices.*')),
                 NavigationItem::make('Refunds')
-                    ->url(fn (): string => route('filament.admin.resources.refunds.index'))
+                    ->url(fn (): string => RefundResource::getUrl('index'))
                     ->icon('heroicon-o-receipt-refund')
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.refunds.*')),
                 NavigationItem::make('Promotions')
-                    ->url(fn (): string => route('filament.admin.resources.promotions.index'))
+                    ->url(fn (): string => PromotionResource::getUrl('index'))
                     ->icon('heroicon-o-tag')
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.promotions.*')),
                 NavigationItem::make('Inventory Sources')
-                    ->url(fn (): string => route('filament.admin.resources.inventory-sources.index'))
+                    ->url(fn (): string => InventorySourceResource::getUrl('index'))
                     ->icon('heroicon-o-building-office-2')
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.inventory-sources.*')),
                 NavigationItem::make('Warranties')
-                    ->url(fn (): string => route('filament.admin.resources.warranties.index'))
+                    ->url(fn (): string => \App\Filament\Resources\WarrantyResource::getUrl('index'))
                     ->icon('heroicon-o-shield-check')
                     ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.warranties.*')),
+                NavigationItem::make('Ads')
+                    ->url(fn (): string => \App\Filament\Resources\AdResource\AdResource::getUrl('index'))
+                    ->icon('heroicon-o-megaphone')
+                    ->isActiveWhen(fn (): bool => request()->routeIs('filament.admin.resources.ad-resource.ads.*')),
             ])
             ->middleware([
                 EncryptCookies::class,

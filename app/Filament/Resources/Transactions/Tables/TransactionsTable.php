@@ -41,10 +41,20 @@ class TransactionsTable
                     'processing' => 'info',
                     'completed' => 'success',
                     'failed' => 'danger',
-                    'cancelled' => 'secondary',
+                    'cancelled' => 'danger', // Changed from 'secondary' to 'danger' for visibility
                     'refunded' => 'info',
                     'expired' => 'secondary',
                     default => 'gray',
+                })
+                ->icon(fn (string $state): string => match ($state) {
+                    'pending' => 'heroicon-o-clock',
+                    'processing' => 'heroicon-o-arrow-path',
+                    'completed' => 'heroicon-o-check-circle',
+                    'failed' => 'heroicon-o-x-circle',
+                    'cancelled' => 'heroicon-o-x-mark',
+                    'refunded' => 'heroicon-o-arrow-path',
+                    'expired' => 'heroicon-o-calendar',
+                    default => 'heroicon-o-credit-card',
                 }),
 
             BadgeColumn::make('type')
@@ -62,6 +72,17 @@ class TransactionsTable
             TextColumn::make('gateway')
                 ->label('Gateway')
                 ->searchable(),
+
+            TextColumn::make('mpesa_transaction_id')
+                ->label('M-Pesa Receipt')
+                ->searchable()
+                ->copyable()
+                ->toggleable(),
+
+            TextColumn::make('customer_phone')
+                ->label('Phone')
+                ->searchable()
+                ->toggleable(),
 
             TextColumn::make('created_at')
                 ->label('Created')
@@ -101,12 +122,12 @@ class TransactionsTable
                     ]),
             ])
             ->actions([
-                \Filament\Tables\Actions\ViewAction::make(),
-                \Filament\Tables\Actions\EditAction::make(),
+                \Filament\Actions\ViewAction::make(),
+                \Filament\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                \Filament\Tables\Actions\BulkActionGroup::make([
-                    \Filament\Tables\Actions\DeleteBulkAction::make(),
+                \Filament\Actions\BulkActionGroup::make([
+                    \Filament\Actions\DeleteBulkAction::make(),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

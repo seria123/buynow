@@ -46,7 +46,6 @@ const showMobileMenu = ref(false);
 const showMobileSearch = ref(false);
 const showUserMenu = ref(false);
 const dropdownCategoryId = ref(null);
-let dropdownCloseTimeout = null;
 const flattenedTreeCache = new WeakMap();
 
 // Get logged-in user and categories from Inertia props
@@ -176,38 +175,12 @@ const formatCurrency = (value) => {
     return currencyFormatter.format(Number(value));
 };
 
-const cancelDropdownClose = () => {
-    if (dropdownCloseTimeout) {
-        clearTimeout(dropdownCloseTimeout);
-        dropdownCloseTimeout = null;
-    }
-};
-
-const scheduleDropdownClose = () => {
-    cancelDropdownClose();
-    dropdownCloseTimeout = setTimeout(() => {
+const toggleDropdown = (categoryId) => {
+    if (dropdownCategoryId.value === categoryId) {
         dropdownCategoryId.value = null;
-    }, 400);
-};
-
-const handleNavMouseEnter = (item) => {
-    if (!item?.hasDropdown || !item?.category) {
-        dropdownCategoryId.value = null;
-
-        return;
+    } else {
+        dropdownCategoryId.value = categoryId;
     }
-
-    cancelDropdownClose();
-    dropdownCategoryId.value = item.category.id;
-};
-
-const handleNavMouseLeave = (item) => {
-    if (!item?.hasDropdown || !item?.category) {
-        return;
-    }
-
-    // Don't close immediately when leaving nav item - allow time to move to dropdown
-    // The close will be scheduled when leaving the dropdown itself
 };
 
 const flattenCategoryTree = (category) => {
@@ -236,6 +209,10 @@ const handleClickOutside = (event) => {
     if (showUserMenu.value && !event.target.closest('.user-menu-container')) {
         showUserMenu.value = false;
     }
+    // Close category dropdown when clicking outside
+    if (dropdownCategoryId.value && !event.target.closest('.group/nav')) {
+        dropdownCategoryId.value = null;
+    }
 };
 
 onMounted(() => {
@@ -244,7 +221,6 @@ onMounted(() => {
 
 onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);
-    cancelDropdownClose();
 });
 
 // Handle logout
@@ -738,14 +714,12 @@ const handleLogout = () => {
         <!-- Desktop Navigation Menu -->
         <!-- Backdrop overlay when dropdown is open (removed for solid display) -->
         <div
-            class="bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 shadow-sm hidden lg:block relative"
-            @mouseleave="scheduleDropdownClose"
-            @mouseenter="cancelDropdownClose">
+            class="bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 shadow-sm hidden lg:block relative">
             <div class="container mx-auto">
                 <nav class="flex items-center justify-center gap-3">
                     <template v-for="(item, index) in navigation" :key="item.name">
-                        <div class="group/nav" @mouseenter="handleNavMouseEnter(item)" @mouseleave="handleNavMouseLeave(item)">
-                            <Link :href="item.href" @click="dropdownCategoryId = null"
+                        <div class="group/nav">
+                            <Link :href="item.hasDropdown && item.category ? '#' : item.href" @click.prevent="item.hasDropdown && item.category ? toggleDropdown(item.category.id) : null"
                                 class="py-4 px-4 text-sm font-medium flex items-center gap-1.5 transition-all duration-300 relative cursor-pointer"
                                 :class="(isNavItemActive(item) || dropdownCategoryId === item.category?.id) ? 'text-yellow-400 dark:text-yellow-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'">
                             <span>{{ item.name }}</span>
@@ -764,8 +738,7 @@ const handleLogout = () => {
 
                             <!-- Dropdown Menu (solid display without animation) -->
                                 <div v-if="item.category && dropdownCategoryId === item.category.id"
-                                    class="absolute left-0 top-full w-full z-50 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800" @mouseenter="cancelDropdownClose"
-                                    @mouseleave="scheduleDropdownClose">
+                                    class="absolute left-0 top-full w-full z-50 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800">
                                     <div class="container mx-auto px-4 py-4">
                                         <div
                                             class="max-h-[500px] overflow-y-auto">
@@ -780,6 +753,7 @@ const handleLogout = () => {
                                                     <!-- Category Header -->
                                                     <div class="flex items-center justify-between mb-4">
                                                         <Link :href="categoryHref(node.category.slug)"
+                                                            @click="dropdownCategoryId = null"
                                                             class="text-lg font-bold text-gray-900 dark:text-white hover:text-yellow-400 dark:hover:text-yellow-400 transition-colors flex items-center gap-2 group">
                                                         <svg class="w-5 h-5 text-yellow-500" fill="none"
                                                             stroke="currentColor" viewBox="0 0 24 24">
@@ -794,6 +768,7 @@ const handleLogout = () => {
                                                         </span>
                                                         </Link>
                                                         <Link :href="categoryHref(node.category.slug)"
+                                                            @click="dropdownCategoryId = null"
                                                             class="text-sm font-medium text-yellow-400 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 flex items-center gap-1 group">
                                                         <span>View All</span>
                                                         <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform"
@@ -809,6 +784,7 @@ const handleLogout = () => {
                                                         class="grid grid-cols-4 gap-3">
                                                         <Link v-for="product in node.category.products.slice(0, 4)"
                                                             :key="product.id" :href="`/product/${product.slug}`"
+                                                            @click="dropdownCategoryId = null"
                                                             class="group/item border border-gray-200 dark:border-zinc-700 rounded-lg p-3 hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-lg transition-all duration-200 bg-white dark:bg-zinc-800/30">
                                                         <div v-if="product.thumbnail_url"
                                                             class="aspect-square mb-2 rounded-lg overflow-hidden bg-gray-100 dark:bg-zinc-800">

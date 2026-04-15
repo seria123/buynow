@@ -58,13 +58,37 @@ class OrdersTable
                         'pending' => 'warning',
                         'processing' => 'info',
                         'failed' => 'danger',
-                        'cancelled' => 'danger',
+                        'cancelled' => 'danger', // Changed from 'danger' to 'danger' (was already danger but ensure consistency)
                         'expired' => 'secondary',
                         default   => 'gray',
+                    })
+                    ->icon(fn (string $state): string => match ($state) {
+                        'paid'    => 'heroicon-o-check-circle',
+                        'unpaid'  => 'heroicon-o-currency-dollar',
+                        'refunded' => 'heroicon-o-arrow-path',
+                        'pending'  => 'heroicon-o-clock',
+                        'processing' => 'heroicon-o-arrow-path',
+                        'failed'   => 'heroicon-o-x-circle',
+                        'cancelled' => 'heroicon-o-x-mark',
+                        'expired'  => 'heroicon-o-calendar',
+                        default    => 'heroicon-o-credit-card',
                     }),
 
                 TextColumn::make('payment_method')
                     ->label('Method')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('promotion_code')
+                    ->label('Promo Code')
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('No promo')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('discount_amount')
+                    ->label('Discount')
+                    ->money('KES')
+                    ->placeholder('KES 0.00')
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('created_at')

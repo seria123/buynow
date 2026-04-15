@@ -34,10 +34,20 @@ class TransactionsRelationManager extends RelationManager
                         'processing' => 'info',
                         'completed' => 'success',
                         'failed' => 'danger',
-                        'cancelled' => 'secondary',
+                        'cancelled' => 'danger', // Changed from 'secondary' to 'danger' for visibility
                         'refunded' => 'info',
                         'expired' => 'secondary',
                         default => 'gray',
+                    })
+                    ->icon(fn (string $state): string => match ($state) {
+                        'pending' => 'heroicon-o-clock',
+                        'processing' => 'heroicon-o-arrow-path',
+                        'completed' => 'heroicon-o-check-circle',
+                        'failed' => 'heroicon-o-x-circle',
+                        'cancelled' => 'heroicon-o-x-mark',
+                        'refunded' => 'heroicon-o-arrow-path',
+                        'expired' => 'heroicon-o-calendar',
+                        default => 'heroicon-o-credit-card',
                     }),
 
                 BadgeColumn::make('type')

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Pages;
 
 use App\Enums\ProductStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Ad;
 use App\Models\Catalogue\Category;
 use App\Models\Catalogue\Product;
 use App\Models\Sales\Refund;
@@ -28,6 +29,24 @@ class PagesController extends Controller
         // Get latest products for general display
         $latestProducts = $this->getLatestProducts();
 
+        // Get ads for homepage
+        $homepageAds = Ad::query()
+            ->active()
+            ->valid()
+            ->byPosition('home')
+            ->ordered()
+            ->take(5)
+            ->get()
+            ->map(fn ($ad) => [
+                'id' => $ad->id,
+                'title' => $ad->title,
+                'subtitle' => $ad->subtitle,
+                'image' => $ad->image ? asset('storage/' . $ad->image) : null,
+                'mobile_image' => $ad->mobile_image ? asset('storage/' . $ad->mobile_image) : null,
+                'link' => $ad->link,
+                'type' => $ad->type,
+            ]);
+
         // Get products on sale (with compare_price set - this acts as special price)
         $saleProducts = $this->getSaleProducts();
 
@@ -51,6 +70,7 @@ class PagesController extends Controller
             'featuredCategories' => $featuredCategories,
             'featuredProducts' => $featuredProducts,
             'latestProducts' => $latestProducts,
+            'homepageAds' => $homepageAds,
             'saleProducts' => $saleProducts,
             'flashSaleEndTime' => $flashSaleEndTime,
         ]);

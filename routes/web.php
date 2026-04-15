@@ -16,6 +16,7 @@ use App\Http\Controllers\Pages\PromotionController;
 use App\Http\Controllers\Pages\AnnouncementController;
 use App\Http\Controllers\Pages\PromotionPageController;
 use App\Http\Controllers\Pages\WarrantyController;
+use App\Http\Controllers\Pages\AdController;
 
 
 use App\Http\Controllers\Pages\StoreController;
@@ -140,11 +141,17 @@ Route::prefix('profile/warranties')->middleware(['auth'])->group(function () {
 Route::prefix('profile/orders')->middleware(['auth'])->group(function () {
     Route::get('/', [OrderController::class, 'index'])->name('orders.index');
     Route::get('/{order}', [OrderController::class, 'show'])->name('orders.show');
+    Route::get('/{order}/success', [OrderController::class, 'success'])->name('orders.success');
     Route::delete('/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
     Route::post('/{order}/mpesa-pay', [OrderController::class, 'pay'])->name('orders.mpesa.pay');
     Route::get('/{order}/status', [OrderController::class, 'status'])->name('orders.status');
     Route::post('/{order}/return-request', [OrderController::class, 'requestReturn'])->name('orders.return.request');
 });
+
+// Receipts page route
+Route::get('/profile/receipts', function () {
+    return inertia('Profile/Receipts');
+})->middleware(['auth'])->name('receipts.index');
 
 // Track order routes (public - anyone can track with order number)
 // Must be defined BEFORE /orders/{order} to avoid being caught by the wildcard
@@ -156,6 +163,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/orders/{order}', [OrderController::class, 'show']);
     Route::get('/orders/{order}/status', [OrderController::class, 'status']);
     Route::delete('/orders/{order}', [OrderController::class, 'destroy']);
+    Route::get('/orders/{order}/receipt', [InvoiceController::class, 'customerDownloadReceipt'])->name('orders.receipt.api');
 });
 
 // Invoice routes
@@ -164,6 +172,16 @@ Route::prefix('profile/orders/{order}/invoice')->middleware(['auth'])->group(fun
     Route::get('/', [InvoiceController::class, 'customerView'])->name('orders.invoice');
     Route::get('/download', [InvoiceController::class, 'customerDownloadPdf'])->name('orders.invoice.download');
 });
+
+// Receipt routes
+// Customer receipt routes (view/download receipt for paid orders)
+Route::prefix('profile/orders/{order}/receipt')->middleware(['auth'])->group(function () {
+    Route::get('/', [InvoiceController::class, 'viewReceipt'])->name('orders.receipt');
+    Route::get('/download', [InvoiceController::class, 'customerDownloadReceipt'])->name('orders.receipt.download');
+});
+
+// Receipt view page (user-facing)
+Route::get('/orders/{order}/receipt/view', [InvoiceController::class, 'viewReceiptPage'])->name('orders.receipt.view');
 
 // Admin invoice routes
 Route::prefix('admin/invoices')->middleware(['auth'])->group(function () {
@@ -195,8 +213,14 @@ Route::middleware(['auth'])->group(function () {
 
 // Payment routes (M-Pesa Daraja)
 Route::post('/payments/{order}/mpesa', [PaymentController::class, 'mpesaPay']);
+Route::post('/payments/{order}/record-cancelled', [PaymentController::class, 'recordCancelledPayment']);
+Route::post('/payments/{order}/record-payment', [PaymentController::class, 'recordPaymentReceived']);
+Route::get('/payments/{order}/check-status', [PaymentController::class, 'checkPaymentStatus']);
 Route::post('/mpesa/callback', [PaymentController::class, 'mpesaCallback']);
 Route::post('/api/mpesa/callback', [PaymentController::class, 'mpesaCallback']);
+
+// Receipt generation API route
+Route::post('/api/receipts/generate', [InvoiceController::class, 'generateReceiptByOrderNumber'])->middleware(['auth']);
 
 // Support routes
 Route::middleware(['auth'])->group(function () {
@@ -228,6 +252,11 @@ Route::prefix('api/promotions')->group(function () {
     Route::post('/apply', [PromotionController::class, 'apply']);
     Route::post('/best-discount', [PromotionController::class, 'bestDiscount']);
 });
+
+// Ad tracking routes
+Route::post('/ads/{ad}/click', [AdController::class, 'trackClick']);
+Route::post('/ads/{ad}/impression', [AdController::class, 'trackImpression']);
+Route::get('/api/ads', [AdController::class, 'index']);
 
 // SEO Sitemap routes
 use App\Http\Controllers\Seo\SitemapController;

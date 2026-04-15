@@ -37,10 +37,20 @@ class TransactionInfolist
                                 'processing' => 'info',
                                 'completed' => 'success',
                                 'failed' => 'danger',
-                                'cancelled' => 'secondary',
+                                'cancelled' => 'danger', // Changed from 'secondary' to 'danger' for visibility
                                 'refunded' => 'info',
                                 'expired' => 'secondary',
                                 default => 'gray',
+                            })
+                            ->icon(fn (string $state): string => match ($state) {
+                                'pending' => 'heroicon-o-clock',
+                                'processing' => 'heroicon-o-arrow-path',
+                                'completed' => 'heroicon-o-check-circle',
+                                'failed' => 'heroicon-o-x-circle',
+                                'cancelled' => 'heroicon-o-x-mark',
+                                'refunded' => 'heroicon-o-arrow-path',
+                                'expired' => 'heroicon-o-calendar',
+                                default => 'heroicon-o-credit-card',
                             }),
                         BadgeEntry::make('type')
                             ->label('Type')
@@ -50,6 +60,61 @@ class TransactionInfolist
                                 default => 'gray',
                             }),
                     ]),
+                ]),
+
+            Section::make('Order Information')
+                ->schema([
+                    Grid::make(3)->schema([
+                        TextEntry::make('order.status')
+                            ->label('Order Status')
+                            ->badge()
+                            ->color(fn (string $state): string => match ($state) {
+                                'pending' => 'warning',
+                                'confirmed' => 'info',
+                                'processing' => 'info',
+                                'shipped' => 'info',
+                                'delivered' => 'success',
+                                'cancelled' => 'danger',
+                                'refunded' => 'warning',
+                                default => 'gray',
+                            }),
+                        TextEntry::make('order.payment_status')
+                            ->label('Payment Status')
+                            ->badge()
+                            ->color(fn (string $state): string => match ($state) {
+                                'pending' => 'warning',
+                                'paid' => 'success',
+                                'partially_paid' => 'info',
+                                'refunded' => 'warning',
+                                'failed' => 'danger',
+                                'cancelled' => 'danger',
+                                default => 'gray',
+                            }),
+                        TextEntry::make('order.total_amount')
+                            ->label('Order Total')
+                            ->money(fn ($record) => $record->order?->currency ?? 'USD'),
+                    ]),
+                ])
+                ->visible(fn ($record) => $record->order !== null),
+
+            Section::make('Order Items')
+                ->schema([
+                    \Filament\Infolists\Components\RepeatableEntry::make('order.items')
+                        ->schema([
+                            Grid::make(4)->schema([
+                                \Filament\Infolists\Components\TextEntry::make('product_name')
+                                    ->label('Product'),
+                                \Filament\Infolists\Components\TextEntry::make('quantity')
+                                    ->label('Qty'),
+                                \Filament\Infolists\Components\TextEntry::make('price')
+                                    ->label('Unit Price')
+                                    ->money('USD'),
+                                \Filament\Infolists\Components\TextEntry::make('subtotal')
+                                    ->label('Total')
+                                    ->money('USD'),
+                            ]),
+                        ])
+                        ->visible(fn ($record) => $record->order && $record->order->items->count() > 0),
                 ]),
 
             Section::make('Payment Information')

@@ -10,7 +10,7 @@ import { router } from '@inertiajs/vue3';
 import "vue3-toastify/dist/index.css";
 
 // Use the cart composable
-const { cart, cartCount, cartTotal, isLoading, loadCart, addToCart, removeFromCart, updateCartQuantity, clearCart, checkout, appliedPromo, promoDiscount } = useCart();
+const { cart, cartCount, cartTotal, isLoading, loadCart, addToCart, removeFromCart, updateCartQuantity, clearCart, checkout, appliedPromo, promoDiscount, subtotal, discount, shipping, total, freeShippingEligible, automaticPromo, automaticDiscount, automaticPromotions } = useCart();
 const loadingCheckout = ref(false);
 
 // Load cart when page mounts
@@ -76,7 +76,7 @@ const applyPromoCode = async () => {
             },
             body: JSON.stringify({
                 code: promoCode.value.trim().toUpperCase(),
-                order_total: cartTotal.value + promoDiscount.value
+                order_total: cart.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
             }),
             credentials: 'same-origin'
         });
@@ -152,9 +152,33 @@ const removePromoCode = async () => {
           </div>
 
           <!-- Cart total -->
-          <div class="flex justify-between items-center mt-6 bg-gray-100 dark:bg-zinc-900 p-4 rounded shadow">
-            <div class="text-lg font-bold">Total: KES {{ cartTotal }}</div>
-            <div class="flex gap-2">
+          <div class="flex flex-col gap-2 mt-6 bg-gray-100 dark:bg-zinc-900 p-4 rounded shadow">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600 dark:text-gray-400">Subtotal:</span>
+              <span class="font-semibold">KES {{ subtotal.toLocaleString() }}</span>
+            </div>
+            
+            <!-- Discount (promo code or automatic) -->
+            <div v-if="discount > 0" class="flex justify-between items-center text-green-600">
+              <span>Discount {{ appliedPromo ? `(${appliedPromo})` : '' }}:</span>
+              <span class="font-semibold">-KES {{ discount.toLocaleString() }}</span>
+            </div>
+            
+            <!-- Shipping -->
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600 dark:text-gray-400">Shipping:</span>
+              <span class="font-semibold" :class="{ 'text-green-600': freeShippingEligible }">
+                {{ freeShippingEligible ? 'FREE' : `KES ${shipping.toLocaleString()}` }}
+              </span>
+            </div>
+            
+            <!-- Total -->
+            <div class="flex justify-between items-center text-lg font-bold border-t pt-2">
+              <span>Total:</span>
+              <span>KES {{ total.toLocaleString() }}</span>
+            </div>
+            
+            <div class="flex gap-2 mt-2">
               <button @click="clearAll" :disabled="isLoading" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 disabled:opacity-50">
                 {{ isLoading ? 'Loading...' : 'Clear Cart' }}
               </button>
@@ -195,6 +219,66 @@ const removePromoCode = async () => {
               <button @click="removePromoCode" class="text-red-500 hover:text-red-700 text-sm">
                 Remove
               </button>
+            </div>
+          </div>
+          
+          <!-- Promo UX Messages -->
+          <div v-if="discount > 0" class="mt-4 bg-green-50 dark:bg-green-900/20 p-4 rounded border border-green-200 dark:border-green-800">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">🎉</span>
+              <div>
+                <p class="text-green-700 dark:text-green-400 font-semibold">
+                  You saved KSh {{ discount.toLocaleString() }}!
+                </p>
+                <p v-if="appliedPromo" class="text-sm text-green-600 dark:text-green-500">
+                  Using code: {{ appliedPromo }}
+                </p>
+                <p v-else-if="automaticPromo" class="text-sm text-green-600 dark:text-green-500">
+                  🔥 {{ automaticPromo.name }} Applied: {{ automaticPromo.description || 'Best deal applied automatically' }}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Free shipping threshold message -->
+          <div v-if="!freeShippingEligible && subtotal > 0" class="mt-4 bg-blue-50 dark:bg-blue-900/20 p-4 rounded border border-blue-200 dark:border-blue-800">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">🚚</span>
+              <div>
+                <p class="text-blue-700 dark:text-blue-400 font-semibold">
+                  Add KSh {{ (1000 - subtotal).toLocaleString() }} more for free shipping!
+                </p>
+                <p class="text-sm text-blue-600 dark:text-blue-500">
+                  Free shipping on orders over KSh 1,000
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Free shipping eligible message -->
+          <div v-if="freeShippingEligible" class="mt-4 bg-green-50 dark:bg-green-900/20 p-4 rounded border border-green-200 dark:border-green-800">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">✅</span>
+              <div>
+                <p class="text-green-700 dark:text-green-400 font-semibold">
+                  You qualify for FREE shipping!
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Best deal applied automatically -->
+          <div v-if="automaticPromo && !appliedPromo" class="mt-4 bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded border border-yellow-200 dark:border-yellow-800">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">🔥</span>
+              <div>
+                <p class="text-yellow-700 dark:text-yellow-400 font-semibold">
+                  Best deal applied automatically!
+                </p>
+                <p class="text-sm text-yellow-600 dark:text-yellow-500">
+                  {{ automaticPromo.name }}: {{ automaticPromo.description || 'Discount applied' }}
+                </p>
+              </div>
             </div>
           </div>
         </div>

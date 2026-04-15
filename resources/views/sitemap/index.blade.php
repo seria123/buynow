@@ -8,10 +8,14 @@
 
     @foreach($sitemap as $url)
     <url>
-        <loc>{!! $url['loc'] !!}</loc>
-        <lastmod>{!! $url['lastmod'] !!}</lastmod>
-        <changefreq>{!! $url['changefreq'] !!}</changefreq>
-        <priority>{!! $url['priority'] !!}</priority>
+       [
+    [
+        'loc' => 'https://example.com',
+        'lastmod' => '2026-03-26',
+        'changefreq' => 'daily',
+        'priority' => '1.0'
+    ]
+]
     </url>
     @endforeach
 

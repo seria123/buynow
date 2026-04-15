@@ -15,6 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Exclude cart routes from CSRF verification (for debugging)
         $middleware->validateCsrfTokens(except: [
             'cart/*',
+            'mpesa/callback',
+            'api/mpesa/callback',
+            'm-pesa/validation',
+            'm-pesa/confirmation',
         ]);
         
         $middleware->web(append: [

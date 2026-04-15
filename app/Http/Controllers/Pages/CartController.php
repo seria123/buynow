@@ -10,18 +10,30 @@ use Illuminate\Support\Str;
 use App\Models\Sales\Cart;
 use App\Models\Catalogue\Product;
 use App\Models\Catalogue\ProductVariant;
-use App\Models\Order;
-use App\Models\OrderItem;
+use App\Models\Sales\Order;
+use App\Models\Sales\OrderItem;
+use App\Models\Sales\Promotion;
+use App\Services\PromotionService;
 
 class CartController extends Controller
 {
+    protected $promotionService;
+
+    public function __construct()
+    {
+        $this->promotionService = app(PromotionService::class);
+    }
+
     // -----------------------------
     // Get cart items
     // -----------------------------
     public function index(Request $request)
     {
+        $cartItems = null;
+        $cartCollection = null;
+
         if (Auth::check()) {
-            $cart = Cart::where('user_id', Auth::id())
+            $cartCollection = Cart::where('user_id', Auth::id())
                         ->get()
                         ->map(function ($item) {
                             return [
@@ -33,28 +45,130 @@ class CartController extends Controller
                                 'quantity' => $item->quantity,
                             ];
                         });
+            $cartItems = Cart::where('user_id', Auth::id())->get();
         } else {
-            $cart = collect($request->session()->get('cart', []));
+            $cartCollection = collect($request->session()->get('cart', []));
+            $cartItems = $request->session()->get('cart', []);
         }
 
-        $cartCount = $cart->sum('quantity');
+        $cartCount = $cartCollection->sum('quantity');
+
+        // Calculate subtotal
+        $subtotal = $cartCollection->sum(fn($item) => $item['price'] * $item['quantity']);
 
         // Get applied promo from session
-        $appliedPromo = $request->session()->get('applied_promo');
+        $appliedPromoCode = $request->session()->get('applied_promo_code');
+        $appliedPromoId = $request->session()->get('applied_promo_id');
         $promoDiscount = $request->session()->get('promo_discount', 0);
 
+        // Check for automatic promotions
+        $automaticPromo = null;
+        $automaticDiscount = 0;
+        $automaticPromotions = $this->promotionService->getAllApplicablePromotions(
+            $subtotal,
+            $cartCollection,
+            Auth::user()
+        );
+
+        if ($automaticPromotions->isNotEmpty()) {
+            $bestAutomatic = $automaticPromotions->first();
+            $automaticPromo = $bestAutomatic['promotion'];
+            $automaticDiscount = $bestAutomatic['discount_amount'];
+        }
+
+        // Check for free shipping
+        $freeShippingEligible = false;
+        $freeShippingPromotion = $this->promotionService->getActivePromotions()
+            ->where('promotion_type', 'free_shipping')
+            ->first();
+
+        if ($freeShippingPromotion) {
+            $freeShippingEligible = $this->promotionService->getFreeShippingEligible($freeShippingPromotion, $subtotal);
+        }
+
         return response()->json([
-            'cart' => $cart,
+            'cart' => $cartCollection,
             'cart_count' => $cartCount,
+            'subtotal' => $subtotal,
             'logged_in' => Auth::check(),
-            'applied_promo' => $appliedPromo,
+            'applied_promo_code' => $appliedPromoCode,
+            'applied_promo_id' => $appliedPromoId,
             'promo_discount' => $promoDiscount,
+            'automatic_promo' => $automaticPromo ? [
+                'id' => $automaticPromo->id,
+                'name' => $automaticPromo->name,
+                'promotion_type' => $automaticPromo->promotion_type,
+                'description' => $this->promotionService->getDiscountDescription($automaticPromo),
+            ] : null,
+            'automatic_discount' => $automaticDiscount,
+            'free_shipping_eligible' => $freeShippingEligible,
+            'automatic_promotions' => $automaticPromotions->map(fn($p) => [
+                'id' => $p['promotion']->id,
+                'name' => $p['promotion']->name,
+                'promotion_type' => $p['promotion']->promotion_type,
+                'discount_amount' => $p['discount_amount'],
+            ])->values(),
         ]);
     }
 
-    public function page()
+    public function page(Request $request)
     {
-        return inertia('Cart/Index');
+        // Calculate totals
+        $subtotal = 0;
+        $promoDiscount = 0;
+        $automaticDiscount = 0;
+        $total = 0;
+        $freeShippingEligible = false;
+
+        $cartItems = Auth::check() 
+            ? Cart::where('user_id', Auth::id())->get()
+            : collect($request->session()->get('cart', []));
+
+        $subtotal = $cartItems->sum(fn($item) => $item['price'] * $item['quantity'] ?? $item->price * $item->quantity);
+
+        // Get promo code discount
+        $appliedPromoId = $request->session()->get('applied_promo_id');
+        if ($appliedPromoId) {
+            $promotion = Promotion::find($appliedPromoId);
+            if ($promotion) {
+                $promoDiscount = $this->promotionService->calculateDiscount($promotion, $subtotal, $cartItems);
+            }
+        }
+
+        // Get automatic discounts
+        $automaticPromotions = $this->promotionService->getAllApplicablePromotions(
+            $subtotal,
+            $cartItems,
+            Auth::user()
+        );
+
+        if ($automaticPromotions->isNotEmpty()) {
+            $bestAutomatic = $automaticPromotions->first();
+            $automaticDiscount = $bestAutomatic['discount_amount'];
+        }
+
+        // Check free shipping
+        $freeShippingPromo = $this->promotionService->getActivePromotions()
+            ->where('promotion_type', 'free_shipping')
+            ->first();
+
+        if ($freeShippingPromo) {
+            $freeShippingEligible = $this->promotionService->getFreeShippingEligible($freeShippingPromo, $subtotal);
+        }
+
+        // Calculate total
+        // ✅ Only ONE discount allowed
+$totalDiscount = $promoDiscount > 0 ? $promoDiscount : $automaticDiscount;
+       $total = max(0, $subtotal - $totalDiscount);
+
+        return inertia('Cart/Index', [
+            'subtotal' => $subtotal,
+            'promo_discount' => $promoDiscount,
+            'automatic_discount' => $automaticDiscount,
+            'total' => $total,
+            'free_shipping_eligible' => $freeShippingEligible,
+            'automatic_promotions' => $automaticPromotions,
+        ]);
     }
 
     // -----------------------------
@@ -211,8 +325,10 @@ $productName = $variant?->name ?? $product->name;
         }
 
         // Also clear promo
-        $request->session()->forget('applied_promo');
+        $request->session()->forget('applied_promo_code');
+        $request->session()->forget('applied_promo_id');
         $request->session()->forget('promo_discount');
+        $request->session()->save();
 
         return $this->index($request);
     }
@@ -220,46 +336,60 @@ $productName = $variant?->name ?? $product->name;
     // -----------------------------
     // Apply promo code
     // -----------------------------
-    public function applyPromo(Request $request)
-    {
-        $request->validate([
-            'code' => 'required|string|max:50',
-            'order_total' => 'required|numeric|min:0',
-        ]);
+   public function applyPromo(Request $request)
+{
+    $request->validate([
+        'code' => 'required|string|max:50',
+    ]);
 
-        $promoCode = $request->input('code');
-        $orderTotal = $request->input('order_total');
+    $promoCode = $request->input('code');
 
-        // Use the promotion service to validate and apply
-        $promotionService = app(\App\Services\PromotionService::class);
-        $result = $promotionService->applyPromoCode($promoCode, $orderTotal);
+    // Get cart items
+    $cartItems = Auth::check() 
+        ? Cart::where('user_id', Auth::id())->get()
+        : collect($request->session()->get('cart', []));
 
-        if ($result['valid']) {
-            // Store in session
-            $request->session()->put('applied_promo', $result['promotion_code']);
-            $request->session()->put('promo_discount', $result['discount_amount']);
+    // 🔥 Calculate total from backend (NOT frontend)
+    $orderTotal = $cartItems->sum(fn($item) => $item->price * $item->quantity);
 
-            return response()->json([
-                'valid' => true,
-                'message' => 'Promo code applied successfully',
-                'promotion_code' => $result['promotion_code'],
-                'discount_amount' => $result['discount_amount'],
-            ]);
-        }
+    // Apply promo
+    $result = $this->promotionService->applyPromoCode(
+        $promoCode, 
+        $orderTotal, 
+        $cartItems,
+        Auth::user()
+    );
+
+    if ($result['valid']) {
+        // Store in session
+        $request->session()->put('applied_promo_code', $result['promotion_code']);
+        $request->session()->put('applied_promo_id', $result['promotion']->id);
+        $request->session()->put('promo_discount', $result['discount_amount']);
+        $request->session()->save();
 
         return response()->json([
-            'valid' => false,
-            'message' => $result['message'] ?? 'Invalid promo code',
-        ], 422);
+            'valid' => true,
+            'message' => 'Promo code applied successfully',
+            'promotion_code' => $result['promotion_code'],
+            'promotion_type' => $result['promotion_type'] ?? 'percentage',
+            'discount_amount' => $result['discount_amount'],
+        ]);
     }
 
+    return response()->json([
+        'valid' => false,
+        'message' => $result['message'] ?? 'Invalid promo code',
+    ], 422);
+}
     // -----------------------------
     // Remove promo code
     // -----------------------------
     public function removePromo(Request $request)
     {
-        $request->session()->forget('applied_promo');
+        $request->session()->forget('applied_promo_code');
+        $request->session()->forget('applied_promo_id');
         $request->session()->forget('promo_discount');
+        $request->session()->save();
 
         return response()->json([
             'valid' => true,
@@ -313,7 +443,7 @@ $productName = $variant?->name ?? $product->name;
     // -----------------------------
     // Checkout
     // -----------------------------
-    public function checkout(Request $request)
+   public function checkout(Request $request)
 {
     $userId = Auth::id();
     $cartItems = Cart::where('user_id', $userId)->get();
@@ -322,46 +452,147 @@ $productName = $variant?->name ?? $product->name;
         return response()->json(['message' => 'Cart is empty'], 400);
     }
 
+    // -----------------------------
+    // 1. Subtotal
+    // -----------------------------
+    $subtotal = $cartItems->sum(fn($item) => $item->price * $item->quantity);
+
+    // -----------------------------
+    // 2. Promo Code Discount
+    // -----------------------------
+    $promoDiscount = 0;
+    $automaticDiscount = 0;
+    $promotion = null;
+    $automaticPromotion = null;
+
+    $appliedPromoId = $request->session()->get('applied_promo_id');
+    $appliedPromoCode = $request->session()->get('applied_promo_code');
+
+    if ($appliedPromoId) {
+        $promotion = Promotion::find($appliedPromoId);
+
+        if ($promotion) {
+            $promoDiscount = $this->promotionService->calculateDiscount(
+                $promotion,
+                $subtotal,
+                $cartItems
+            );
+        }
+    }
+
+    // -----------------------------
+    // 3. Automatic Promotion (ONLY if no promo code)
+    // -----------------------------
+    if (!$promotion) {
+        $automaticPromotions = $this->promotionService->getAllApplicablePromotions(
+            $subtotal,
+            $cartItems,
+            Auth::user()
+        );
+
+        if ($automaticPromotions->isNotEmpty()) {
+            $bestAutomatic = $automaticPromotions->first();
+            $automaticDiscount = $bestAutomatic['discount_amount'];
+            $automaticPromotion = $bestAutomatic['promotion'];
+        }
+    }
+
+    // -----------------------------
+    // 4. Choose ONE discount
+    // -----------------------------
+    $totalDiscount = $promotion ? $promoDiscount : $automaticDiscount;
+
+    // -----------------------------
+    // 5. Shipping (backend controlled)
+    // -----------------------------
+    $freeShippingEligible = false;
+
+    $freeShippingPromo = $this->promotionService->getActivePromotions()
+        ->where('promotion_type', 'free_shipping')
+        ->first();
+
+    if ($freeShippingPromo) {
+        $freeShippingEligible = $this->promotionService->getFreeShippingEligible(
+            $freeShippingPromo,
+            $subtotal
+        );
+    }
+
+    $shippingCost = $freeShippingEligible ? 0 : 150; // 🔥 FIXED (no frontend input)
+
+    // -----------------------------
+    // 6. Final Total
+    // -----------------------------
+    $total = max(0, $subtotal - $totalDiscount + $shippingCost);
+
     DB::beginTransaction();
+
     try {
-        // Create Order
+        // -----------------------------
+        // 7. Create Order
+        // -----------------------------
         $order = Order::create([
             'id' => Str::uuid(),
             'user_id' => $userId,
-            'total_amount' => 0,
+            'total_amount' => $total,
+            'subtotal' => $subtotal,
+            'discount_amount' => $totalDiscount,
+            'shipping_cost' => $shippingCost,
+            'promotion_id' => $promotion?->id ?? $automaticPromotion?->id,
+            'promotion_code' => $appliedPromoCode ?? null,
             'status' => 'pending',
         ]);
 
-        $total = 0;
+        // -----------------------------
+        // 8. Create Order Items
+        // -----------------------------
         foreach ($cartItems as $item) {
-            $product = Product::find($item->product_id);
-            $subtotal = $product->price * $item->quantity;
-
             OrderItem::create([
                 'id' => Str::uuid(),
                 'order_id' => $order->id,
-                'product_id' => $product->id,
-                'product_name' => $product->name,
+                'product_id' => $item->product_id,
+                'variant_id' => $item->variant_id,
+                'product_name' => $item->product_name,
                 'quantity' => $item->quantity,
-                'price' => $product->price,
-                'subtotal' => $subtotal,
+                'price' => $item->price,
+                'subtotal' => $item->price * $item->quantity,
             ]);
-
-            $total += $subtotal;
         }
 
-        // Update total amount
-        $order->update(['total_amount' => $total]);
+        // -----------------------------
+        // 9. Record Promotion Usage
+        // -----------------------------
+        if ($promotion) {
+            $this->promotionService->recordCouponUsage(
+                $promotion,
+                $userId,
+                $order->id,
+                $promoDiscount
+            );
+        }
 
-        // Clear cart
+        // -----------------------------
+        // 10. Cleanup
+        // -----------------------------
         Cart::where('user_id', $userId)->delete();
+
+        $request->session()->forget([
+            'applied_promo_code',
+            'applied_promo_id',
+            'promo_discount'
+        ]);
 
         DB::commit();
 
-        return response()->json(['order_id' => $order->id]);
+        // Redirect to success page
+        return redirect()->route('orders.success', $order->id);
+
     } catch (\Exception $e) {
         DB::rollBack();
-        return response()->json(['message' => 'Checkout failed: ' . $e->getMessage()], 500);
+
+        return response()->json([
+            'message' => 'Checkout failed: ' . $e->getMessage()
+        ], 500);
     }
 }
 }

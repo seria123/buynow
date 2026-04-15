@@ -101,6 +101,7 @@ class ViewOrder extends ViewRecord
                             'pending'  => 'Pending',
                             'refunded' => 'Refunded',
                             'failed'   => 'Failed',
+                            'cancelled' => 'Cancelled',
                         ])
                         ->default(fn () => $this->record->payment_status)
                         ->required(),
@@ -122,6 +123,99 @@ class ViewOrder extends ViewRecord
                     $this->refreshFormData(['status', 'payment_status']);
                 })
                 ->successNotificationTitle('Order updated successfully'),
+
+            // Action to manually record a cancelled payment (when callback fails)
+            Action::make('recordCancelledPayment')
+                ->label('Record Cancelled Payment')
+                ->icon('heroicon-o-x-mark')
+                ->color('danger')
+                ->visible(fn ($record) => 
+                    in_array($record->payment_status, ['unpaid', 'pending']) && 
+                    $record->checkout_request_id &&
+                    !$record->transactions()->where('status', 'cancelled')->exists()
+                )
+                ->requiresConfirmation()
+                ->modalDescription('This will record the payment as cancelled and create a transaction record. Use this when the M-Pesa callback was not received.')
+                ->action(function ($record): void {
+                    // Create a cancelled transaction
+                    $transaction = \App\Models\Sales\Transaction::create([
+                        'order_id' => $record->id,
+                        'user_id' => $record->user_id,
+                        'amount' => $record->total_amount,
+                        'currency' => 'KES',
+                        'type' => 'payment',
+                        'status' => 'cancelled',
+                        'payment_method' => 'mpesa',
+                        'gateway' => 'mpesa',
+                        'gateway_transaction_id' => $record->checkout_request_id,
+                        'gateway_response_message' => 'Manually marked as cancelled (callback not received)',
+                        'customer_email' => $record->user?->email,
+                        'customer_phone' => $record->user?->phone,
+                    ]);
+
+                    // Update order payment status
+                    $record->updatePaymentStatus('cancelled');
+
+                    Notification::make()
+                        ->title('Payment Recorded as Cancelled')
+                        ->body('Transaction ' . $transaction->transaction_number . ' has been created with cancelled status.')
+                        ->success()
+                        ->send();
+
+                    $this->refreshFormData(['payment_status']);
+                }),
+
+            // Action to manually record a SUCCESS payment (when callback fails)
+            Action::make('recordPaymentReceived')
+                ->label('Record Payment Received')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->visible(fn ($record) => 
+                    in_array($record->payment_status, ['unpaid', 'pending']) && 
+                    $record->checkout_request_id &&
+                    !$record->transactions()->where('status', 'completed')->exists()
+                )
+                ->requiresConfirmation()
+                ->modalDescription('This will record the payment as completed. Use this when the M-Pesa callback was not received but you confirmed payment was made.')
+                ->form([
+                    TextInput::make('mpesa_receipt')
+                        ->label('M-Pesa Receipt Number (optional)')
+                        ->placeholder('e.g., RGX1234567'),
+                ])
+                ->action(function (array $data, $record): void {
+                    // Create a completed transaction
+                    $transaction = \App\Models\Sales\Transaction::create([
+                        'order_id' => $record->id,
+                        'user_id' => $record->user_id,
+                        'amount' => $record->total_amount,
+                        'currency' => 'KES',
+                        'type' => 'payment',
+                        'status' => 'completed',
+                        'payment_method' => 'mpesa',
+                        'gateway' => 'mpesa',
+                        'gateway_transaction_id' => $record->checkout_request_id,
+                        'mpesa_transaction_id' => $data['mpesa_receipt'] ?? null,
+                        'mpesa_phone_number' => $record->user?->phone,
+                        'gateway_response_message' => 'Manually marked as paid (callback not received)',
+                        'customer_email' => $record->user?->email,
+                        'customer_phone' => $record->user?->phone,
+                        'processed_at' => now(),
+                    ]);
+
+                    // Update order payment status
+                    $record->updatePaymentStatus('paid');
+                    $record->updateStatus('processing');
+                    $record->payment_method = 'mpesa';
+                    $record->save();
+
+                    Notification::make()
+                        ->title('Payment Recorded as Received')
+                        ->body('Transaction ' . $transaction->transaction_number . ' has been created with completed status.')
+                        ->success()
+                        ->send();
+
+                    $this->refreshFormData(['payment_status', 'status']);
+                }),
         ];
     }
 }

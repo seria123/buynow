@@ -33,28 +33,71 @@ class PromotionsTable
                 ->fontFamily('mono')
                 ->copyable()
                 ->badge()
-                ->color('info'),
+                ->color('info')
+                ->placeholder('Automatic'),
 
-            TextColumn::make('type')
+            TextColumn::make('promotion_type')
                 ->label('Type')
-                ->formatStateUsing(fn ($state) => $state === 'percentage' ? '%' : '$')
+                ->formatStateUsing(fn ($state) => match($state) {
+                    'percentage' => '% Discount',
+                    'fixed' => 'Fixed Amount',
+                    'buy_one_get_one' => 'BOGO',
+                    'free_shipping' => 'Free Shipping',
+                    'bundle' => 'Bundle',
+                    'flash_sale' => 'Flash Sale',
+                    default => $state,
+                })
                 ->badge()
-                ->color(fn ($state) => $state === 'percentage' ? 'info' : 'success'),
+                ->color(fn ($state) => match($state) {
+                    'percentage', 'fixed' => 'info',
+                    'buy_one_get_one' => 'warning',
+                    'free_shipping' => 'success',
+                    'flash_sale' => 'danger',
+                    'bundle' => 'purple',
+                    default => 'gray',
+                }),
 
             TextColumn::make('value')
                 ->label('Value')
                 ->formatStateUsing(function ($state, $record) {
-                    if ($record->type === 'percentage') {
+                    if (!$state && $record->promotion_type !== 'free_shipping') {
+                        return '-';
+                    }
+                    if ($record->promotion_type === 'percentage') {
                         return $state . '%';
                     }
-                    return '$' . number_format($state, 2);
+                    if ($record->promotion_type === 'fixed') {
+                        return 'KSh ' . number_format($state, 2);
+                    }
+                    if ($record->promotion_type === 'buy_one_get_one') {
+                        return 'Buy ' . ($record->buy_quantity ?? 1) . ' Get ' . ($record->get_quantity ?? 1);
+                    }
+                    return $state;
                 })
                 ->sortable(),
 
+            TextColumn::make('apply_to')
+                ->label('Applies To')
+                ->formatStateUsing(fn ($state) => match($state) {
+                    'all' => 'All Products',
+                    'category' => 'Category',
+                    'products' => 'Specific Products',
+                    'customer_group' => 'Customer Group',
+                    default => $state,
+                })
+                ->badge()
+                ->color(fn ($state) => $state === 'all' ? 'gray' : 'info'),
+
             TextColumn::make('minimum_order_amount')
                 ->label('Min. Order')
-                ->formatStateUsing(fn ($state) => $state ? '$' . number_format($state, 2) : '-')
+                ->formatStateUsing(fn ($state) => $state ? 'KSh ' . number_format($state, 2) : '-')
                 ->sortable(),
+
+            TextColumn::make('priority')
+                ->label('Priority')
+                ->sortable()
+                ->badge()
+                ->color(fn ($state) => $state > 50 ? 'warning' : 'gray'),
 
             TextColumn::make('usage_limit')
                 ->label('Usage')
@@ -89,12 +132,38 @@ class PromotionsTable
                 ->label('Active')
                 ->boolean()
                 ->sortable(),
+
+            IconColumn::make('is_flash_sale')
+                ->label('Flash')
+                ->boolean()
+                ->sortable()
+                ->visible(fn () => false), // Hidden by default, can be enabled
         ];
     }
 
     public static function getFilters(): array
     {
         return [
+            SelectFilter::make('promotion_type')
+                ->label('Promotion Type')
+                ->options([
+                    'percentage' => 'Percentage Discount',
+                    'fixed' => 'Fixed Amount',
+                    'buy_one_get_one' => 'Buy 1 Get 1',
+                    'free_shipping' => 'Free Shipping',
+                    'bundle' => 'Bundle Deal',
+                    'flash_sale' => 'Flash Sale',
+                ]),
+
+            SelectFilter::make('apply_to')
+                ->label('Applies To')
+                ->options([
+                    'all' => 'All Products',
+                    'category' => 'Specific Category',
+                    'products' => 'Specific Products',
+                    'customer_group' => 'Customer Group',
+                ]),
+
             SelectFilter::make('status')
                 ->label('Status')
                 ->options([
@@ -117,6 +186,22 @@ class PromotionsTable
                 ->label('Currently Valid')
                 ->query(function (Builder $query) {
                     return $query->valid();
+                })
+                ->toggle(),
+
+            Filter::make('automatic')
+                ->label('Automatic Promotions')
+                ->query(function (Builder $query) {
+                    return $query->where(function ($q) {
+                        $q->whereNull('code')->orWhere('code', '');
+                    });
+                })
+                ->toggle(),
+
+            Filter::make('coupon_based')
+                ->label('Coupon-based Promotions')
+                ->query(function (Builder $query) {
+                    return $query->whereNotNull('code')->where('code', '!=', '');
                 })
                 ->toggle(),
         ];

@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 use App\Models\Sales\Order;
 use App\Models\Sales\OrderItem;
 use App\Models\Sales\Invoice;
+use App\Models\Sales\Promotion;
+use App\Services\PromotionService;
 use Inertia\Inertia;
 
 class OrderController extends Controller
@@ -18,7 +20,7 @@ class OrderController extends Controller
     // -----------------------------
   public function index()
 {
-    $orders = Order::with(['orderItems.product', 'refunds'])
+    $orders = Order::with(['orderItems.product', 'refunds', 'transactions'])
         ->where('user_id', auth()->id())
         ->orderBy('created_at', 'desc')
         ->get();
@@ -40,7 +42,7 @@ class OrderController extends Controller
     }
 
     // Load relationships including refunds
-    $order->load(['orderItems.product', 'refunds']);
+    $order->load(['orderItems.product', 'refunds', 'transactions']);
 
    $itemsTotal = $order->orderItems->sum(function ($item) {
        return (float) $item->subtotal;
@@ -67,45 +69,71 @@ class OrderController extends Controller
 
     // -----------------------------
     // Checkout the cart
-  public function checkout(Request $request)
-  {
+    // -----------------------------
+ public function checkout(Request $request)
+{
     $user = Auth::user();
-    $cartItems = $user->cartItems; // assumes User->cartItems relationship
+    $cartItems = $user->cartItems;
 
     if ($cartItems->isEmpty()) {
-        return redirect()->back()->with('error', 'Your cart is empty.');
+        return back()->with('error', 'Your cart is empty.');
     }
 
-    // Get applied promo from session
-    $appliedPromo = $request->session()->get('applied_promo');
-    $promoDiscount = $request->session()->get('promo_discount', 0);
+    $promotionService = app(PromotionService::class);
 
-    // Group cart items by store_id
+    $appliedPromoId = $request->session()->get('applied_promo_id');
+    $appliedPromoCode = $request->session()->get('applied_promo_code');
+
+    $cartTotals = $promotionService->calculateCartTotals(
+        $cartItems,
+        $user,
+        $appliedPromoId
+    );
+
+    $subtotal = $cartTotals['subtotal'];
+    $discount = $cartTotals['discount'];
+    $shipping = $cartTotals['shipping'];
+    $promotion = $cartTotals['promotion'];
+    $freeShipping = $cartTotals['free_shipping'];
+
     $stores = $cartItems->groupBy(fn($item) => $item->product->store_id);
 
-    // Calculate total cart value for promo proportion calculation
-    $totalCartValue = $cartItems->sum(fn($item) => $item->product->price * $item->quantity);
+    $orders = [];
 
     foreach ($stores as $storeId => $itemsForStore) {
-        // Create order for this store
+
+        $orderItemsTotal = $itemsForStore->sum(
+            fn($item) => $item->product->price * $item->quantity
+        );
+
+        $ratio = $subtotal > 0 ? $orderItemsTotal / $subtotal : 0;
+
+        $orderDiscount = round($discount * $ratio, 2);
+        $orderShipping = $freeShipping ? 0 : round($shipping * $ratio, 2);
+
+        $orderTotal = max(0, $orderItemsTotal - $orderDiscount + $orderShipping);
+
         $order = Order::create([
             'id' => (string) Str::uuid(),
             'user_id' => $user->id,
             'store_id' => $storeId,
-            'total_amount' => $itemsForStore->sum(fn($item) => $item->product->price * $item->quantity),
+            'total_amount' => $orderTotal,
+            'subtotal' => $orderItemsTotal,
+            'discount_amount' => $orderDiscount,
+            'shipping_cost' => $orderShipping,
+            'promotion_id' => $promotion?->id,
+            'promotion_code' => $appliedPromoCode,
             'status' => 'pending',
             'payment_status' => 'unpaid',
         ]);
 
-        // Generate human-friendly order number
-        $datePart = now()->format('Ymd');
-        $randomPart = strtoupper(Str::random(4));
-        $order->order_number = "ORD-{$datePart}-{$randomPart}";
-        $order->save();
+        $order->update([
+            'order_number' => 'ORD-' . now()->format('Ymd') . '-' . strtoupper(Str::random(4))
+        ]);
 
-        // Create order items
         foreach ($itemsForStore as $cartItem) {
             $product = $cartItem->product;
+
             OrderItem::create([
                 'id' => (string) Str::uuid(),
                 'order_id' => $order->id,
@@ -117,34 +145,74 @@ class OrderController extends Controller
             ]);
         }
 
-        // Create invoice for the order
-        $orderItemsTotal = $order->orderItems->sum('subtotal');
-        
-        // Apply promo discount proportionally to each order
-        $orderProportion = $totalCartValue > 0 ? $orderItemsTotal / $totalCartValue : 0;
-        $orderPromoDiscount = $promoDiscount * $orderProportion;
-        
-        $taxAmount = ($orderItemsTotal - $orderPromoDiscount) * 0.16; // 16% VAT
-        $totalAmount = max(0, ($orderItemsTotal - $orderPromoDiscount) + $taxAmount);
-
         Invoice::create([
             'order_id' => $order->id,
             'subtotal' => $orderItemsTotal,
-            'tax_amount' => $taxAmount,
-            'total_amount' => $totalAmount,
+            'tax_amount' => 0,
+            'total_amount' => $orderTotal,
             'status' => 'pending',
             'invoice_date' => now()->toDateString(),
         ]);
+
+        if ($promotion) {
+            $promotionService->recordCouponUsage(
+                $promotion,
+                $user->id,
+                $order->id,
+                $orderDiscount
+            );
+        }
+
+        $orders[] = $order;
     }
 
-    // Clear the cart
+    // 🧹 cleanup
     $user->cartItems()->delete();
 
-    // Clear promo from session
-    $request->session()->forget('applied_promo');
-    $request->session()->forget('promo_discount');
+    $request->session()->forget([
+        'applied_promo_code',
+        'applied_promo_id',
+    ]);
 
-    return redirect()->route('orders.index')->with('success', 'Orders placed successfully!');
+    $firstOrder = $orders[0];
+
+    return redirect()->route('orders.success', $firstOrder->id);
+}
+   
+
+// -----------------------------
+// Order success page
+// -----------------------------
+public function success(Order $order)
+{
+    // Ensure user owns the order
+    if ($order->user_id !== auth()->id()) {
+        abort(403, 'Unauthorized');
+    }
+
+    // Load relationships
+    $order->load(['orderItems.product', 'transactions']);
+
+    // Calculate summary
+    $itemsTotal = $order->orderItems->sum(function ($item) {
+        return (float) $item->subtotal;
+    });
+
+    $vat = $itemsTotal * 0.16;
+    $discount = $order->discount ?? 0;
+    $shipping = $order->shipping_fee ?? 150;
+    $grandTotal = $itemsTotal + $vat + $shipping - $discount;
+
+    return Inertia::render('Orders/Success', [
+        'order' => $order,
+        'summary' => [
+            'itemsTotal' => $itemsTotal,
+            'vat' => $vat,
+            'shipping' => $shipping,
+            'discount' => $discount,
+            'grandTotal' => $grandTotal,
+        ]
+    ]);
 }
 
     // -----------------------------
@@ -220,8 +288,26 @@ public function callback(Request $request)
             $order->updatePaymentStatus('paid');
             $order->updateStatus('processing');
 
-            // Update invoice status to paid if exists
-            if ($order->invoice) {
+            // Create invoice if it doesn't exist, or update existing one
+            if (!$order->invoice) {
+                // Calculate totals from order items
+                $subtotal = $order->orderItems->sum(function ($item) {
+                    return $item->price * $item->quantity;
+                });
+
+                $taxAmount = $subtotal * 0.16; // 16% VAT
+                $totalAmount = $subtotal + $taxAmount;
+
+                Invoice::create([
+                    'order_id' => $order->id,
+                    'subtotal' => $subtotal,
+                    'tax_amount' => $taxAmount,
+                    'total_amount' => $totalAmount,
+                    'status' => 'paid',
+                    'invoice_date' => now()->toDateString(),
+                ]);
+            } else {
+                // Update existing invoice status to paid
                 $order->invoice->update(['status' => 'paid']);
             }
         }
@@ -252,9 +338,16 @@ public function status(Order $order)
         return response()->json(['message' => 'Unauthorized'], 403);
     }
 
+    // Also load transactions and invoice for more info
+    $order->load(['transactions', 'invoice']);
+
     return response()->json([
         'payment_status' => $order->payment_status,
         'status' => $order->status,
+        'transactions' => $order->transactions,
+        'checkout_request_id' => $order->checkout_request_id,
+        'invoice' => $order->invoice,
+        'receipt_url' => $order->receipt_path ? asset('storage/' . $order->receipt_path) : null,
     ]);
 }
 public function trackForm()

@@ -4,6 +4,7 @@ import MainLayout from './Layouts/MainLayout.vue';
 import CategoryIconBar from './Components/CategoryIconBar.vue';
 import FlashSale from './Components/FlashSale.vue';
 import ProductCarousel from './Components/ProductCarousel.vue';
+import AdCarousel from './Components/AdCarousel.vue';
 
 defineProps({
     categories: {
@@ -22,6 +23,10 @@ defineProps({
         type: Array,
         default: () => [],
     },
+    homepageAds: {
+        type: Array,
+        default: () => [],
+    },
     saleProducts: {
         type: Array,
         default: () => [],
@@ -31,6 +36,30 @@ defineProps({
         default: '',
     },
 });
+
+// Helper function to format ad type for display
+const formatAdType = (type) => {
+    const typeMap = {
+        'banner': 'Banner Ad',
+        'promotion': 'Promotion',
+        'featured': 'Featured',
+        'flash_sale': 'Flash Sale',
+        'category': 'Category Link'
+    };
+    return typeMap[type] || type;
+};
+
+// Helper function to get badge classes based on ad type
+const getAdTypeBadgeClass = (type) => {
+    const classMap = {
+        'banner': 'bg-blue-600 text-white',
+        'promotion': 'bg-green-600 text-white',
+        'featured': 'bg-purple-600 text-white',
+        'flash_sale': 'bg-red-600 text-white',
+        'category': 'bg-orange-500 text-white'
+    };
+    return classMap[type] || 'bg-gray-600 text-white';
+};
 </script>
 
 <template>
@@ -38,6 +67,13 @@ defineProps({
     <MainLayout>
         <!-- Category Icon Bar - Right below navigation -->
         <CategoryIconBar :categories="categories" />
+
+        <!-- Homepage Ads Carousel Section -->
+        <AdCarousel 
+            v-if="homepageAds.length > 0" 
+            :ads="homepageAds" 
+            :autoplay-interval="5000"
+        />
 
         <!-- Flash Sales Section (if there are sale products) -->
         <FlashSale 

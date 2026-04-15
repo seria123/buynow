@@ -11,16 +11,20 @@ const isLoading = ref(false);
 const appliedPromo = ref(null);
 const promoDiscount = ref(0);
 
+// Backend totals (NEVER calculate in JS)
+const subtotal = ref(0);
+const discount = ref(0);
+const shipping = ref(150);
+const total = ref(0);
+const freeShippingEligible = ref(false);
+const automaticPromo = ref(null);
+const automaticDiscount = ref(0);
+const automaticPromotions = ref([]);
+
 const DEBUG_CART = true;
 
-// Computed total amount
-const cartTotal = computed(() => {
-  const total = parseFloat(
-    cart.value.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0).toFixed(2)
-  );
-  // Apply promo discount if any
-  return Math.max(0, total - promoDiscount.value);
-});
+// Computed total amount - USE BACKEND VALUE ONLY
+const cartTotal = computed(() => total.value);
 
 // -----------------------------
 // CSRF helper
@@ -81,9 +85,19 @@ const loadCart = async () => {
     cart.value = data.cart || [];
     cartCount.value = data.cart_count || 0;
     
+    // Use backend totals (NEVER calculate in JS)
+    subtotal.value = data.subtotal || 0;
+    discount.value = data.promo_discount || data.automatic_discount || 0;
+    shipping.value = data.free_shipping_eligible ? 0 : 150;
+    total.value = Math.max(0, subtotal.value - discount.value + shipping.value);
+    freeShippingEligible.value = data.free_shipping_eligible || false;
+    automaticPromo.value = data.automatic_promo || null;
+    automaticDiscount.value = data.automatic_discount || 0;
+    automaticPromotions.value = data.automatic_promotions || [];
+    
     // Load promo from session if available
-    if (data.applied_promo) {
-      appliedPromo.value = data.applied_promo;
+    if (data.applied_promo_code) {
+      appliedPromo.value = data.applied_promo_code;
       promoDiscount.value = data.promo_discount || 0;
     } else {
       appliedPromo.value = null;
@@ -94,6 +108,14 @@ const loadCart = async () => {
     cartCount.value = 0;
     appliedPromo.value = null;
     promoDiscount.value = 0;
+    subtotal.value = 0;
+    discount.value = 0;
+    shipping.value = 150;
+    total.value = 0;
+    freeShippingEligible.value = false;
+    automaticPromo.value = null;
+    automaticDiscount.value = 0;
+    automaticPromotions.value = [];
   }
 };
 
@@ -182,21 +204,80 @@ const clearCart = async () => {
   });
   cart.value = [];
   cartCount.value = 0;
+  appliedPromo.value = null;
+  promoDiscount.value = 0;
+};
+
+// Apply promo code
+const applyPromoCode = async (code) => {
+  const csrf = await getCsrfToken();
+  if (!csrf) throw new Error('No CSRF token');
+
+  const subtotal = cart.value.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0);
+
+  const res = await debugFetch('/cart/apply-promo', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': csrf,
+      'X-Requested-With': 'XMLHttpRequest',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({ code, order_total: subtotal }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok || !data.valid) {
+    throw new Error(data.message || 'Invalid promo code');
+  }
+
+  appliedPromo.value = data.promotion_code;
+  promoDiscount.value = data.discount_amount;
+
+  return data;
+};
+
+// Remove promo code
+const removePromoCode = async () => {
+  const csrf = await getCsrfToken();
+  if (!csrf) throw new Error('No CSRF token');
+
+  await debugFetch('/cart/remove-promo', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'X-CSRF-TOKEN': csrf,
+      'X-Requested-With': 'XMLHttpRequest',
+      'Accept': 'application/json',
+    },
+  });
+
+  appliedPromo.value = null;
+  promoDiscount.value = 0;
 };
 
   const checkout = async () => {
         isLoading.value = true;
         try {
-            // Post checkout
+            // Post checkout - backend will redirect to success page
             router.post(route('checkout'), {}, {
                 onFinish: () => {
                     isLoading.value = false;
+                    // Clear local cart state
                     cart.value = [];
                     cartCount.value = 0;
-                    cartTotal.value = 0;
-
-                    // Automatically go to Orders page
-                    router.visit(route('orders.index'));
+                    subtotal.value = 0;
+                    discount.value = 0;
+                    shipping.value = 150;
+                    total.value = 0;
+                    freeShippingEligible.value = false;
+                    automaticPromo.value = null;
+                    automaticDiscount.value = 0;
+                    automaticPromotions.value = [];
+                    appliedPromo.value = null;
+                    promoDiscount.value = 0;
                 }
             });
         } catch (e) {
@@ -217,6 +298,14 @@ export const useCart = () => ({
   isLoading,
   appliedPromo,
   promoDiscount,
+  subtotal,
+  discount,
+  shipping,
+  total,
+  freeShippingEligible,
+  automaticPromo,
+  automaticDiscount,
+  automaticPromotions,
   loadCart,
   checkAuthStatus,
   addToCart,
@@ -224,4 +313,6 @@ export const useCart = () => ({
   updateCartQuantity,
   clearCart,
   checkout,
+  applyPromoCode,
+  removePromoCode,
 });

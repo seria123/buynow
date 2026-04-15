@@ -3,13 +3,18 @@ import { ref, computed, onMounted, toRaw, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { Head, router } from '@inertiajs/vue3';
 import MainLayout from '../Layouts/MainLayout.vue';
+import RecentlyViewedProducts from '../Components/RecentlyViewedProducts.vue';
 import { useCart } from '../../cart.js';
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
 import axios from 'axios';
 
 const props = defineProps({
-  product: Object
+  product: Object,
+  recentlyViewed: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const page = usePage();
@@ -875,5 +880,8 @@ const formatDate = (dateString) => {
         </div>
       </div>
     </div>
+
+    <!-- Recently Viewed Products -->
+    <RecentlyViewedProducts :products="recentlyViewed" />
   </MainLayout>
 </template>

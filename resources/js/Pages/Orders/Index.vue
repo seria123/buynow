@@ -51,10 +51,20 @@ function startPolling(order) {
       order.payment_status = res.data.payment_status;
       order.status = res.data.status;
 
-      if (order.payment_status?.toLowerCase() === 'paid') {
+      const paymentStatus = order.payment_status?.toLowerCase();
+      
+      // Stop polling when payment is no longer pending
+      if (paymentStatus === 'paid' || paymentStatus === 'cancelled' || paymentStatus === 'failed' || paymentStatus === 'expired') {
         clearInterval(pollingIntervals[order.id]);
         delete pollingIntervals[order.id];
-        toast.success(`Order #${order.order_number} is now paid!`);
+        
+        if (paymentStatus === 'paid') {
+          toast.success(`Order #${order.order_number} is now paid!`);
+        } else if (paymentStatus === 'cancelled') {
+          toast.info(`Payment for order #${order.order_number} was cancelled.`);
+        } else if (paymentStatus === 'failed') {
+          toast.error(`Payment for order #${order.order_number} failed.`);
+        }
       }
     } catch (err) {
       console.error('Polling failed', err);
@@ -192,6 +202,12 @@ function getTotalRefunded(refunds) {
                 <div>Total: KES {{ order.total_amount }}</div>
                 <div v-if="getTotalRefunded(order.refunds) > 0" class="text-green-600 text-sm">
                   Refunded: KES {{ getTotalRefunded(order.refunds).toFixed(2) }}
+                </div>
+                <div v-if="order.transactions && order.transactions.length > 0" class="text-sm text-gray-500 mt-1">
+                  <span>Transaction: {{ order.transactions[0].transaction_number }}</span>
+                  <span v-if="order.transactions[0].mpesa_transaction_id" class="ml-2">
+                    (M-Pesa: {{ order.transactions[0].mpesa_transaction_id }})
+                  </span>
                 </div>
               </div>
 

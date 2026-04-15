@@ -12,6 +12,7 @@ use App\Models\Catalogue\ProductVariant;
 use App\Models\Catalogue\ProductAttributeValue;
 use App\Models\Catalogue\ProductRating;
 use App\Models\Catalogue\ProductComment;
+use App\Services\RecentlyViewedProducts;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -399,6 +400,10 @@ class ProductsController extends Controller
             abort(404);
         }
         
+        // Record this product view
+        $recentlyViewed = new RecentlyViewedProducts();
+        $recentlyViewed->recordView($product->id);
+        
         // Load all necessary relations
         $product->load(['category', 'brand', 'variants.variantOptions.attribute', 'media']);
         
@@ -484,6 +489,7 @@ class ProductsController extends Controller
 
         return Inertia::render('Products/Show', [
             'product' => $transformedProduct,
+            'recentlyViewed' => $recentlyViewed->getRecentProducts(8, $product->id),
         ])->with('jsonLd', $jsonLd);
     }
     

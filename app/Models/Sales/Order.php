@@ -29,17 +29,22 @@ class Order extends Model
         'order_number',
         'checkout_request_id',
         'total_amount',
+        'subtotal',
+        'discount_amount',
+        'shipping_cost',
         'status',
         'payment_status',
         'payment_method',
+        'receipt_path',
         'return_status',
         'promotion_id',
-        'discount_amount',
         'promotion_code',
     ];
 
     protected $casts = [
         'discount_amount' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'shipping_cost' => 'decimal:2',
     ];
 
     protected static function boot()

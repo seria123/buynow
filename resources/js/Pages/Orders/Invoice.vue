@@ -92,7 +92,6 @@ function downloadInvoice() {
               <tr v-for="item in order.order_items" :key="item.id">
                 <td class="px-6 py-4">
                   <p class="font-medium">{{ item.product_name }}</p>
-                  <p v-if="item.variant" class="text-sm text-gray-500">{{ item.variant.name }}</p>
                 </td>
                 <td class="px-6 py-4 text-right">{{ formatCurrency(item.price) }}</td>
                 <td class="px-6 py-4 text-right">{{ item.quantity }}</td>

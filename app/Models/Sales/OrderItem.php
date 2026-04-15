@@ -54,6 +54,6 @@ class OrderItem extends Model
     // Relation to Product
     public function product()
     {
-        return $this->belongsTo(Product::class, 'product_id', 'id');
+        return $this->belongsTo(\App\Models\Catalogue\Product::class, 'product_id', 'id');
     }
 }

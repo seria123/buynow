@@ -38,7 +38,20 @@ class OrderInfolist
                                     'cancelled' => 'danger',
                                     'expired'  => 'secondary',
                                     default    => 'gray',
+                                })
+                                ->icon(fn (string $state): string => match ($state) {
+                                    'paid'     => 'heroicon-o-check-circle',
+                                    'unpaid'   => 'heroicon-o-currency-dollar',
+                                    'refunded' => 'heroicon-o-arrow-path',
+                                    'pending'  => 'heroicon-o-clock',
+                                    'processing' => 'heroicon-o-arrow-path',
+                                    'failed'   => 'heroicon-o-x-circle',
+                                    'cancelled' => 'heroicon-o-x-mark',
+                                    'expired'  => 'heroicon-o-calendar',
+                                    default    => 'heroicon-o-credit-card',
                                 }),
+                            TextEntry::make('subtotal')->label('Subtotal')->money('KES'),
+                            TextEntry::make('discount_amount')->label('Discount')->money('KES')->color('danger'),
                             TextEntry::make('total_amount')->label('Total Amount')->money('KES'),
                             TextEntry::make('payment_method')->label('Payment Method'),
                             TextEntry::make('created_at')->label('Placed At')->dateTime('M d, Y H:i'),
@@ -46,12 +59,13 @@ class OrderInfolist
                     ]),
 
                 Section::make('Promotion Applied')
-                    ->visible(fn ($record) => $record->promotion_code !== null)
+                    ->visible(fn ($record) => $record->promotion_code !== null || $record->promotion_id !== null)
                     ->schema([
                         Grid::make(3)->schema([
                             TextEntry::make('promotion_code')->label('Promo Code')
                                 ->badge()
-                                ->color('info'),
+                                ->color('info')
+                                ->placeholder('Automatic Promotion'),
                             TextEntry::make('discount_amount')->label('Discount')
                                 ->money('KES'),
                             TextEntry::make('promotion.name')->label('Promotion Name'),
@@ -112,10 +126,20 @@ class OrderInfolist
                                     'processing' => 'info',
                                     'completed' => 'success',
                                     'failed' => 'danger',
-                                    'cancelled' => 'secondary',
+                                    'cancelled' => 'danger',
                                     'refunded' => 'info',
                                     'expired' => 'secondary',
                                     default => 'gray',
+                                })
+                                ->icon(fn (string $state): string => match ($state) {
+                                    'pending' => 'heroicon-o-clock',
+                                    'processing' => 'heroicon-o-arrow-path',
+                                    'completed' => 'heroicon-o-check-circle',
+                                    'failed' => 'heroicon-o-x-circle',
+                                    'cancelled' => 'heroicon-o-x-mark',
+                                    'refunded' => 'heroicon-o-arrow-path',
+                                    'expired' => 'heroicon-o-calendar',
+                                    default => 'heroicon-o-credit-card',
                                 }),
                             TextEntry::make('primaryTransaction.gateway')
                                 ->label('Gateway')
