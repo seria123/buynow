@@ -14,7 +14,7 @@ const promoDiscount = ref(0);
 // Backend totals (NEVER calculate in JS)
 const subtotal = ref(0);
 const discount = ref(0);
-const shipping = ref(150);
+const shipping = ref(0.00);
 const total = ref(0);
 const freeShippingEligible = ref(false);
 const automaticPromo = ref(null);
@@ -88,7 +88,7 @@ const loadCart = async () => {
     // Use backend totals (NEVER calculate in JS)
     subtotal.value = data.subtotal || 0;
     discount.value = data.promo_discount || data.automatic_discount || 0;
-    shipping.value = data.free_shipping_eligible ? 0 : 150;
+    shipping.value = data.free_shipping_eligible ? 0 : 0.00;
     total.value = Math.max(0, subtotal.value - discount.value + shipping.value);
     freeShippingEligible.value = data.free_shipping_eligible || false;
     automaticPromo.value = data.automatic_promo || null;
@@ -110,7 +110,7 @@ const loadCart = async () => {
     promoDiscount.value = 0;
     subtotal.value = 0;
     discount.value = 0;
-    shipping.value = 150;
+    shipping.value = 0.00;
     total.value = 0;
     freeShippingEligible.value = false;
     automaticPromo.value = null;
@@ -127,7 +127,7 @@ const addToCart = async (productSlug, quantity = 1, variantId = null) => {
   if (!csrf) throw new Error('No CSRF token');
 
   const payload = { product_slug: productSlug, quantity }; // <-- send slug
-  if (variantId) payload.variant_id = variantId;
+  if (variantId !== null && variantId !== undefined) payload.variant_id = parseInt(variantId, 10);
 
   const res = await debugFetch('/cart/add', {
     method: 'POST',
@@ -169,7 +169,7 @@ const updateCartQuantity = async (productId, quantity, variantId = null) => {
   if (!csrf) throw new Error('No CSRF token');
 
   const payload = { product_id: productId, quantity };
-  if (variantId) payload.variant_id = variantId;
+  if (variantId !== null && variantId !== undefined) payload.variant_id = parseInt(variantId, 10);
 
   const res = await debugFetch('/cart/update-quantity', {
     method: 'POST',
@@ -270,7 +270,7 @@ const removePromoCode = async () => {
                     cartCount.value = 0;
                     subtotal.value = 0;
                     discount.value = 0;
-                    shipping.value = 150;
+                    shipping.value = 0.00;
                     total.value = 0;
                     freeShippingEligible.value = false;
                     automaticPromo.value = null;

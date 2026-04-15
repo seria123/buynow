@@ -217,6 +217,7 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
     document.addEventListener('click', handleClickOutside);
+    loadCart(); // Load cart on mount to display count and total
 });
 
 onUnmounted(() => {

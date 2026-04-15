@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Sales\Promotion;
 use App\Models\Sales\Order;
 use App\Models\Sales\CouponUsage;
-use App\Models\Catalogue\Product;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -13,7 +12,7 @@ class PromotionService
 {
     /*
     |--------------------------------------------------------------------------
-    | 🔹 CORE: CART TOTAL CALCULATION (SINGLE SOURCE OF TRUTH)
+    | 🔹 CORE: CART TOTAL CALCULATION
     |--------------------------------------------------------------------------
     */
     public function calculateCartTotals($cartItems, $user = null, $appliedPromoId = null): array
@@ -29,7 +28,7 @@ class PromotionService
             $appliedPromoId
         );
 
-        [$shipping, $freeShipping] = $this->calculateShipping($subtotal);
+        [$shipping, $freeShipping] = $this->calculateShipping($subtotal, $items);
 
         $total = max(0, $subtotal - $discount + $shipping);
 
@@ -45,7 +44,7 @@ class PromotionService
 
     /*
     |--------------------------------------------------------------------------
-    | 🔹 NORMALIZATION (avoid array/object chaos)
+    | 🔹 NORMALIZATION
     |--------------------------------------------------------------------------
     */
     private function normalizeItems($cartItems): Collection
@@ -66,24 +65,22 @@ class PromotionService
 
     /*
     |--------------------------------------------------------------------------
-    | 🔹 DISCOUNT RESOLUTION (promo vs automatic)
+    | 🔹 DISCOUNT RESOLUTION
     |--------------------------------------------------------------------------
     */
     private function resolveDiscount(float $subtotal, Collection $items, $user, $appliedPromoId): array
     {
-        // 1. Promo Code
+        // Promo code applied
         if ($appliedPromoId) {
             $promotion = Promotion::find($appliedPromoId);
-
             if ($promotion) {
                 $discount = $this->calculateDiscount($promotion, $subtotal, $items);
                 return [$promotion, $discount];
             }
         }
 
-        // 2. Automatic Promotion
+        // Automatic promotion
         $best = $this->getBestAutomaticDiscount($subtotal, $items, $user);
-
         if ($best) {
             return [$best['promotion'], $best['discount_amount']];
         }
@@ -96,60 +93,26 @@ class PromotionService
     | 🔹 SHIPPING
     |--------------------------------------------------------------------------
     */
-   private function calculateShipping(float $subtotal): array
-{
-    $freeShippingPromo = $this->getActivePromotions()
-        ->where('promotion_type', 'free_shipping')
-        ->first();
-
-    $isFree = $freeShippingPromo &&
-        $this->getFreeShippingEligible($freeShippingPromo, $subtotal);
-
-    // Always return 0 for now (override hardcoded 150)
-    $shipping = 0;
-
-    return [$shipping, $isFree];
-}
-
-    /*
-    |--------------------------------------------------------------------------
-    | 🔹 PROMO VALIDATION
-    |--------------------------------------------------------------------------
-    */
-    public function validatePromoCode(string $code, float $orderTotal = 0, $user = null): array
+    private function calculateShipping(float $subtotal, Collection $items = null): array
     {
-        $promotion = Promotion::where('code', strtoupper(trim($code)))->first();
+        $shippingFee = 0;
 
-        if (!$promotion) return $this->invalid('Invalid promo code');
-        if (!$promotion->is_active) return $this->invalid('Promo not active');
-        if ($promotion->isUpcoming()) return $this->invalid('Not started yet');
-        if ($promotion->isExpired()) return $this->invalid('Expired');
-        if ($promotion->isUsageLimitReached()) return $this->invalid('Usage limit reached');
-
-        if ($user && $promotion->max_uses_per_user > 0) {
-            $used = Order::where('promotion_id', $promotion->id)
-                ->where('customer_id', $user->id)
-                ->count();
-
-            if ($used >= $promotion->max_uses_per_user) {
-                return $this->invalid('Already used');
+        // Calculate shipping per item if cart items exist
+        if ($items) {
+            foreach ($items as $item) {
+                $shippingFee += ($item['shipping_cost'] ?? 0) * $item['quantity'];
             }
         }
 
-        if ($promotion->minimum_order_amount &&
-            $orderTotal < $promotion->minimum_order_amount) {
-            return $this->invalid('Minimum order not reached');
-        }
+        // Check if free shipping promotion is active
+        $freeShippingPromo = $this->getActivePromotions()
+            ->where('promotion_type', 'free_shipping')
+            ->first();
 
-        return [
-            'valid' => true,
-            'promotion' => $promotion
-        ];
-    }
+        $isFree = $freeShippingPromo &&
+            $this->getFreeShippingEligible($freeShippingPromo, $subtotal);
 
-    private function invalid($message): array
-    {
-        return ['valid' => false, 'message' => $message];
+        return [$isFree ? 0 : $shippingFee, $isFree];
     }
 
     /*
@@ -159,9 +122,7 @@ class PromotionService
     */
     public function calculateDiscount(Promotion $promotion, float $total, Collection $items): float
     {
-        if ($total < ($promotion->minimum_order_amount ?? 0)) {
-            return 0;
-        }
+        if ($total < ($promotion->minimum_order_amount ?? 0)) return 0;
 
         return match ($promotion->promotion_type) {
             'percentage' => round($total * $promotion->value / 100, 2),
@@ -175,12 +136,10 @@ class PromotionService
     private function bogo(Collection $items, Promotion $promo): float
     {
         $discount = 0;
-
         foreach ($items as $item) {
             $sets = floor($item['quantity'] / 2);
             $discount += $sets * $item['price'];
         }
-
         return $discount;
     }
 
@@ -231,31 +190,6 @@ class PromotionService
 
     /*
     |--------------------------------------------------------------------------
-    | 🔹 GET ALL APPLICABLE PROMOTIONS
-    |--------------------------------------------------------------------------
-    */
-    public function getAllApplicablePromotions(float $subtotal, $cartItems, $user = null): Collection
-    {
-        $items = $this->normalizeItems($cartItems);
-        $promotions = collect();
-
-        // Get automatic promotions
-        $automaticPromotions = $this->getAutomaticPromotions();
-        foreach ($automaticPromotions as $promo) {
-            $discount = $this->calculateDiscount($promo, $subtotal, $items);
-            if ($discount > 0) {
-                $promotions->push([
-                    'promotion' => $promo,
-                    'discount_amount' => $discount,
-                ]);
-            }
-        }
-
-        return $promotions->sortByDesc('discount_amount');
-    }
-
-    /*
-    |--------------------------------------------------------------------------
     | 🔹 RECORD USAGE
     |--------------------------------------------------------------------------
     */
@@ -272,4 +206,14 @@ class PromotionService
             $promotion->incrementUsage();
         });
     }
+    public function getAllApplicablePromotions(float $subtotal, Collection $items, $user = null): Collection
+{
+    return $this->getAutomaticPromotions()
+        ->map(fn($promo) => [
+            'promotion' => $promo,
+            'discount_amount' => $this->calculateDiscount($promo, $subtotal, $items),
+        ])
+        ->filter(fn($p) => $p['discount_amount'] > 0)
+        ->values();
+}
 }

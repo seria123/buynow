@@ -5,7 +5,7 @@ import ProfileLayout from '../Layouts/ProfileLayout.vue';
 import MainLayout from '../Layouts/MainLayout.vue';
 import { Head } from '@inertiajs/vue3';
 
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 
 import "vue3-toastify/dist/index.css";
 
@@ -47,7 +47,7 @@ const handleCheckout = async () => {
 
 // Continue shopping button handler
 const continueShopping = () => {
-    Inertia.visit('/products');
+    router.visit('/products');
 };
 
 // Promo code handling

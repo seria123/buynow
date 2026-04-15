@@ -114,24 +114,30 @@ Route::post('/profile/password', [ProfileController::class, 'updatePassword'])
     Route::get('/product/{slug}', [ProductsController::class, 'show'])->name('products.show');
 
  // User cart page (Inertia) - accessible to all users
-Route::get('/cart/page', [CartController::class, 'page']);
-Route::get('/profile/cart', [CartController::class, 'page'])->middleware('auth')->name('cart.page');
 
-// Cart routes (public for guests, includes session + CSRF)
-Route::middleware('web')->group(function () {
-    Route::get('/cart', [CartController::class, 'index']);
-    Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
-    Route::post('/cart/remove/{productId}', [CartController::class, 'remove']);
-    Route::post('/cart/update-quantity', [CartController::class, 'updateQuantity']);
-    Route::post('/cart/clear', [CartController::class, 'clear']);
-    Route::post('/cart/apply-promo', [CartController::class, 'applyPromo']);
-    Route::post('/cart/remove-promo', [CartController::class, 'removePromo']);
+Route::prefix('cart')->name('cart.')->group(function () {
+    // Cart page (Inertia)
+    Route::get('/', [CartController::class, 'index'])->name('index');
+
+    // Cart actions
+    Route::post('/add', [CartController::class, 'add'])->name('add');
+    Route::post('/remove/{productId}', [CartController::class, 'remove'])->name('remove');
+    Route::post('/update-quantity', [CartController::class, 'updateQuantity'])->name('updateQuantity');
+    Route::post('/clear', [CartController::class, 'clear'])->name('clear');
+
+    // Promotions
+    Route::post('/apply-promo', [CartController::class, 'applyPromo'])->name('applyPromo');
+    Route::post('/remove-promo', [CartController::class, 'removePromo'])->name('removePromo');
+
+    // Optional: separate cart page for logged-in users (profile/cart)
+    Route::get('/page', [CartController::class, 'page'])->middleware('auth')->name('page');
+});
 
     Route::middleware('auth')->group(function () {
-        Route::post('/cart/checkout', [CartController::class, 'checkout']);
+        Route::post('/cart/checkout', [OrderController::class, 'checkout'])->name('checkout');
         Route::post('/cart/merge', [CartController::class, 'merge']);
     });
-});
+
 
 // Warranty routes
 Route::prefix('profile/warranties')->middleware(['auth'])->group(function () {
@@ -192,8 +198,6 @@ Route::prefix('admin/invoices')->middleware(['auth'])->group(function () {
     Route::get('/{invoice}/download', [InvoiceController::class, 'downloadPdf'])->name('admin.invoices.download');
     Route::get('/{invoice}/view', [InvoiceController::class, 'viewPdf'])->name('admin.invoices.view');
 });
-
-Route::post('/cart/checkout', [OrderController::class, 'checkout'])->name('checkout');
 
 // Wishlist routes
 Route::middleware('auth')->group(function () {
@@ -261,5 +265,7 @@ Route::get('/api/ads', [AdController::class, 'index']);
 // SEO Sitemap routes
 use App\Http\Controllers\Seo\SitemapController;
 Route::get('/sitemap.xml', [SitemapController::class, 'index']);
+Route::get('/sitemap-products.xml', [SitemapController::class, 'products']);
+Route::get('/sitemap-categories.xml', [SitemapController::class, 'categories']);
 Route::get('/sitemap-products.xml', [SitemapController::class, 'products']);
 Route::get('/sitemap-categories.xml', [SitemapController::class, 'categories']);
