@@ -1,0 +1,22 @@
+.git
+.github
+.env
+.env.*
+node_modules
+vendor
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+.phpunit.result.cache
+docker-compose.yml
+docker-compose.*.yml
+README.md
+
+# Build artifacts generated on the host. These must never be copied into the
+# image: the cached package manifest is written by a dev-inclusive composer
+# install and references providers absent from a --no-dev vendor/ directory,
+# and the storage symlink points at a host path that does not exist in-image.
+bootstrap/cache/*.php
+public/storage
+
