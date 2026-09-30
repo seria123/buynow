@@ -50,6 +50,17 @@
 *.keystore
 /service-account*.json
 
+# Database dumps. These contain the entire BuyNow schema including customer
+# names, emails, phone numbers, orders and payment records, and the push to
+# GitHub is to a public repository. Never commit one.
+*.sql
+*.sql.gz
+*.sql.zip
+*.sql.bak
+/buynow_backup.sql
+/database/dumps/
+/database/backups/
+
 Homestead.json
 Homestead.yaml
 Thumbs.db
