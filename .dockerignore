@@ -1,7 +1,29 @@
-.git
-.github
+# Keep the build context free of anything secret or host-specific.
+#
+# .env / .env.* is the important line: the checkout's .env carries APP_KEY, the
+# MySQL password, the Gmail app password, the Google OAuth client secret, the
+# M-Pesa consumer key/secret/passkey and the M-Pesa callback URL. If it were
+# copied in, all of them would be baked into an image layer and could be
+# recovered by anyone who can pull the image or read its history.
 .env
 .env.*
+!.env.example
+!.env.production.example
+
+# Credentials that may sit in the tree outside .env.
+/auth.json
+/.ngrok2
+/ngrok.yml
+/ngrok.yaml
+*.ngrok-authtoken
+*.pem
+*.p12
+*.keystore
+/service-account*.json
+/storage/*.key
+
+.git
+.github
 node_modules
 vendor
 storage/logs/*
@@ -9,6 +31,9 @@ storage/framework/cache/*
 storage/framework/sessions/*
 storage/framework/views/*
 .phpunit.result.cache
+*.log
+
+# Compose files describe local/laptop topologies, not the image.
 docker-compose.yml
 docker-compose.*.yml
 README.md
@@ -19,4 +44,3 @@ README.md
 # and the storage symlink points at a host path that does not exist in-image.
 bootstrap/cache/*.php
 public/storage
-

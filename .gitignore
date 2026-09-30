@@ -1,19 +1,40 @@
 *.log
 .DS_Store
+
+# ---- Secrets: never commit any environment file -------------------------
+# .env holds APP_KEY, the database password, the Gmail app password, the Google
+# OAuth client secret, the M-Pesa consumer key/secret/passkey and the M-Pesa
+# callback URL. Only the committed *example* files are safe.
 .env
+.env.*
+!.env.example
+!.env.production.example
 .env.backup
+.env.backup.*
+.env.local
 .env.production
-.phpactor.json
-.phpunit.result.cache
+*.env
+
+# Editor / agent credentials
 /.fleet
 /.idea
 /.nova
 /.phpunit.cache
-/.vscode
 /.qodo
 /.cursor
 /.zed
+/.vscode
 /auth.json
+
+# Tool / tunnel credentials
+/ngrok.yml
+/ngrok.yaml
+/.ngrok2
+*.ngrok-authtoken
+
+# Laravel / PHP
+/.phpactor.json
+/.phpunit.result.cache
 /node_modules
 /public/build
 /public/hot
@@ -22,6 +43,13 @@
 /storage/*.key
 /storage/pail
 /vendor
+
+# Provisioning credentials that may appear in CI or deploy scripts
+*.pem
+*.p12
+*.keystore
+/service-account*.json
+
 Homestead.json
 Homestead.yaml
 Thumbs.db

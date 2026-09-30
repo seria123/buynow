@@ -1,0 +1,48 @@
+# LOCAL DEVELOPMENT ONLY (laptop + ngrok). This file is intentionally NOT
+# suitable for a cloud host; see docker/README.md and README.md.
+#
+# Two host-specific assumptions make it local-only:
+#
+# 1. `network_mode: host`
+#    The MySQL instance holding the real `buynow` schema is the laptop's own
+#    mysqld and it binds to 127.0.0.1:3306 only. On the default bridge network
+#    the container's 127.0.0.1 is the container itself, so DB_HOST=127.0.0.1
+#    would fail with "SQLSTATE[HY000] [2002] Connection refused". Sharing the
+#    host network namespace makes DB_HOST=127.0.0.1 resolve to the host mysqld
+#    and makes nginx's port bind the host port directly, with no `ports:` mapping.
+#    Cloud platforms (Render/Railway/Fly/App Runner/Heroku) do not support host
+#    networking at all - they route one injected $PORT to the container.
+#
+# 2. `DB_HOST=127.0.0.1` in the laptop .env
+#    This is the laptop's MySQL. Nothing about it exists on a cloud host, where
+#    the database is a managed instance reached by its own hostname, and where
+#    a loopback mysqld would not be running at all.
+#
+# In production there is no compose file: the platform builds this same
+# Dockerfile directly and supplies $PORT plus all configuration as environment
+# variables / secrets. See .env.production.example.
+#
+# Secrets are never written here. Every credential is read from the gitignored
+# .env file and injected as container environment variables, then forwarded into
+# PHP by `clear_env = no` in docker/php-fpm.conf.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: buynow
+    container_name: buynow
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      # The application's real base URL. .env carries the local dev-server
+      # value (port 8000), which would emit wrong absolute URLs behind this
+      # container's port 10000.
+      APP_URL: http://localhost:10000
+      # Local loopback only: ngrok and the local browser both arrive from
+      # 127.0.0.1. Production uses the TRUSTED_PROXIES default of '*' instead.
+      TRUSTED_PROXIES: 127.0.0.1,::1
+      PORT: "10000"
+    restart: unless-stopped

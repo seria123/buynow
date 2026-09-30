@@ -1,0 +1,58 @@
+# Template. ${NGINX_PORT} / ${PHP_FPM_PORT} are substituted by
+# docker/entrypoint.sh at container start, because nginx's `listen` directive
+# cannot read environment variables.
+#
+# ${NGINX_PORT} comes from $PORT, which the hosting platform injects (Render,
+# Railway, Fly, App Runner, Heroku all set it). Locally it defaults to 10000.
+# Nothing here is hardcoded to a single port, so the same image runs unchanged
+# on any platform and on any assigned port.
+server {
+    listen ${NGINX_PORT};
+    server_name _;
+
+    root /var/www/html/public;
+
+    index index.php index.html;
+
+    # Must stay >= PHP's upload_max_filesize / post_max_size in
+    # docker/php-fpm.conf, otherwise large product uploads are truncated by
+    # nginx before PHP ever sees them.
+    client_max_body_size 32M;
+
+    # Proxy timeouts for streamed/large responses.
+    fastcgi_read_timeout 300s;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        try_files $uri =404;
+
+        fastcgi_pass 127.0.0.1:${PHP_FPM_PORT};
+        fastcgi_index index.php;
+
+        include fastcgi_params;
+
+        # Forward the client's own Host header verbatim, including the port
+        # when the client sent one.
+        #
+        # The previous version rebuilt it as `$host:$server_port`. That is
+        # correct only for the local direct-access case; behind a cloud reverse
+        # proxy the public Host is buynow.example.com while $server_port is the
+        # container's internal port, so it produced buynow.example.com:10000
+        # and broke every generated absolute URL.
+        #
+        # Behind the platform proxy, Symfony additionally prefers the
+        # X-Forwarded-Host header, which the TrustProxies middleware in
+        # bootstrap/app.php only honours when the peer is trusted.
+        fastcgi_param HTTP_HOST $http_host;
+
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}

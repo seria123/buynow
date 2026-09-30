@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     default-mysql-client \
+    gettext-base \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
         pdo_mysql \
@@ -70,11 +71,27 @@ RUN rm -f public/storage \
 RUN chown -R www-data:www-data /var/www/html/storage \
     /var/www/html/bootstrap/cache
 
-COPY docker/nginx.conf /etc/nginx/sites-available/default
+COPY docker/nginx.conf.template /etc/nginx/buynow/nginx.conf.template
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # Must be loaded after the image's default www.conf so it takes precedence.
 COPY docker/php-fpm.conf /usr/local/etc/php-fpm.d/zz-buynow.conf
+COPY docker/entrypoint.sh /usr/local/bin/buynow-entrypoint
+RUN chmod +x /usr/local/bin/buynow-entrypoint
+
+# `network_mode: host` is NOT used in production. Cloud platforms route a public
+# HTTPS request to a single port inside the container and inject that port as
+# $PORT. docker/entrypoint.sh renders nginx.conf.template against that value, so
+# this image listens on whatever port it is given and the same image works on
+# any host. 10000 is only the local/ngrok default.
+ENV PORT=10000
+ENV PHP_FPM_PORT=9000
 
 EXPOSE 10000
 
+# Uses the app's own /up health endpoint, which Laravel 12 provides via
+# withRouting(health: '/up') in bootstrap/app.php.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
+    CMD curl -fsS "http://127.0.0.1:${PORT}/up" || exit 1
+
+ENTRYPOINT ["/usr/local/bin/buynow-entrypoint"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
