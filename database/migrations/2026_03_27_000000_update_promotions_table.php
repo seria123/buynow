@@ -11,6 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Recover from a previous partial run: MySQL DDL is not transactional,
+        // so a failure after the column additions leaves them behind.
+        $partial = array_filter([
+            'promotion_type', 'apply_to', 'category_id', 'product_ids',
+            'customer_group_id', 'per_user_limit', 'max_uses_per_user', 'priority',
+            'buy_quantity', 'get_quantity', 'minimum_quantity', 'is_flash_sale',
+            'flash_sale_duration_minutes', 'bundle_product_ids',
+            'bundle_discount_percentage', 'description',
+        ], fn ($c) => Schema::hasColumn('promotions', $c));
+        if ($partial) {
+            Schema::table('promotions', fn (Blueprint $t) => $t->dropColumn(array_values($partial)));
+        }
+
         Schema::table('promotions', function (Blueprint $table) {
             // Add new promotion types
             $table->enum('promotion_type', [
@@ -34,7 +47,7 @@ return new class extends Migration
             ])->default('all')->after('promotion_type');
 
             // Category for category-based promotions
-            $table->foreignId('category_id')->nullable()->after('apply_to')->constrained('categories')->nullOnDelete();
+            $table->foreignUlid('category_id')->nullable()->after('apply_to')->constrained('categories')->nullOnDelete();
 
             // Product IDs for product-specific promotions (JSON array)
             $table->json('product_ids')->nullable()->after('category_id');
