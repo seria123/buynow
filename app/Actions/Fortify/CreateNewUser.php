@@ -45,7 +45,13 @@ class CreateNewUser implements CreatesNewUsers
         ]);
 
         // Send email verification notification
-        $user->sendEmailVerificationNotification();
+        // A mail outage or rejected recipient must not turn a successful signup
+        // into a 500; the user can request a new link from the verify page.
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return $user;
     }
