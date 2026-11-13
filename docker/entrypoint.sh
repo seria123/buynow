@@ -37,4 +37,13 @@ rm -f /etc/nginx/conf.d/buynow-default.conf
 # Fail fast with a readable message rather than an opaque 502 later.
 nginx -t
 
+# Apply pending migrations (additive only). The database may still be starting,
+# so retry briefly; a failure is logged but does not stop the web server.
+cd /var/www/html
+for i in 1 2 3 4 5 6; do
+  if php artisan migrate --force; then break; fi
+  echo "migrate failed (attempt $i), retrying in 5s" >&2
+  sleep 5
+done
+
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
